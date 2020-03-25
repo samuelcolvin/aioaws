@@ -15,13 +15,13 @@ format:
 
 .PHONY: lint
 lint:
-	# skip flake8 while it STILL doesn't work with python 3.8
-	#flake8 aioaws/ tests/
+	flake8 aioaws/ tests/
 	$(isort) --check-only
 	$(black) --check
 
 .PHONY: mypy
 mypy:
+	mypy --version
 	mypy aioaws
 
 .PHONY: test

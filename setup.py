@@ -1,6 +1,3 @@
-import os
-import re
-import sys
 from importlib.machinery import SourceFileLoader
 from pathlib import Path
 
@@ -21,7 +18,7 @@ ext_modules = None
 
 setup(
     name='aioaws',
-    version=str(version.VERSION),
+    version=version.VERSION,
     description=description,
     long_description=long_description,
     long_description_content_type='text/markdown',

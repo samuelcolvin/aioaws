@@ -52,5 +52,4 @@ clean:
 	rm -f .coverage.*
 	rm -rf build
 	rm -rf dist
-	rm -f aioaws/*.c aioaws/*.so
 	rm -rf site

@@ -10,8 +10,13 @@ on:
 
 jobs:
   test:
-    name: run tests
-    runs-on: ubuntu-latest
+    name: test on ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu, windows, macos]
+
+    runs-on: ${{ format('{0}-latest', matrix.os) }}
 
     steps:
     - uses: actions/checkout@v2
@@ -34,3 +39,36 @@ jobs:
 
     - name: test
       run: make test
+
+  deploy:
+    name: Deploy
+    needs: test
+    if: "success() && startsWith(github.ref, 'refs/tags/')"
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: set up python
+        uses: actions/setup-python@v1
+        with:
+          python-version: '3.8'
+
+      - name: install
+        run: |
+          make install
+          pip install -U wheel twine
+
+      - name: build
+        run: python setup.py sdist bdist_wheel
+
+      - run: twine check dist/*
+
+      - name: check tag
+        run: ./tests/check_tag.py
+
+      - name: upload to pypi
+        run: twine upload dist/*
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.pypi_token }}

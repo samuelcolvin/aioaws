@@ -86,7 +86,8 @@ class AwsClient:
         r = await self.client.request(
             method, url, data=data, headers=self._auth_headers(method, url, data=data, content_type=content_type)
         )
-        # if r.status_code != 200:
+        if r.status_code != 200:
+            raise RequestError(r)
         #     debug(r.status_code, r.url, dict(r.request.headers), r.history, r.content)
         #
         #     from xml.etree import ElementTree
@@ -95,7 +96,6 @@ class AwsClient:
         #         xml_root.find('StringToSign').text,
         #         xml_root.find('CanonicalRequest').text,
         #     )
-        r.raise_for_status()
         return r
 
     def _auth_headers(
@@ -155,3 +155,14 @@ class AwsClient:
 
 def _reduce_signature(key: bytes, msg: str) -> bytes:
     return hmac.new(key, msg.encode(), hashlib.sha256).digest()
+
+
+class RequestError(RuntimeError):
+    def __init__(self, r: Response):
+        error_msg = f'unexpected response from {r.request.method} "{r.request.url}": {r.status_code}'
+        super().__init__(error_msg)
+        self.response = r
+        self.status = r.status_code
+
+    def __str__(self) -> str:
+        return f'{self.args[0]}, response:\n{self.response.text}'

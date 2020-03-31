@@ -48,7 +48,8 @@ setup(
     python_requires='>=3.8',
     zip_safe=False,  # https://mypy.readthedocs.io/en/latest/installed_packages.html
     install_requires=[
-        'pydantic>=1.4',
+        'aiofiles>=0.4.0',
         'httpx>=0.12.1',
+        'pydantic>=1.4',
     ],
 )

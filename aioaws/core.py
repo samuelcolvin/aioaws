@@ -8,7 +8,8 @@ from typing import Any, Dict, Literal, Optional
 
 from httpx import URL, AsyncClient, Response
 
-from .utils import Settings, utcnow
+from .config import BaseConfigProtocol
+from .utils import get_config_attr, utcnow
 
 __all__ = ('AwsClient',)
 logger = logging.getLogger('aws.core')
@@ -39,27 +40,23 @@ class AwsClient:
     HTTP client for AWS with authentication
     """
 
-    __slots__ = 'client', 'settings', 'region', 'service', 'host', 'endpoint'
-
-    def __init__(self, client: AsyncClient, settings: Settings, service: Literal['s3', 'ses']):
+    def __init__(self, client: AsyncClient, config: BaseConfigProtocol, service: Literal['s3', 'ses']):
         self.client = client
-        self.settings = settings
+        self.aws_access_key = get_config_attr(config, 'aws_access_key')
+        self.aws_secret_key = get_config_attr(config, 'aws_secret_key')
         self.service = service
+        self.region = get_config_attr(config, 'aws_region')
         if self.service == 'ses':
-            self.region = settings.aws_ses_region
             self.host = f'email.{self.region}.amazonaws.com'
         else:
-            self.region = settings.aws_s3_region
-            bucket = self.settings.aws_s3_bucket
+            bucket = get_config_attr(config, 'aws_s3_bucket')
             if '.' in bucket:
                 # assumes the bucket is a domain and is already as a CNAME record for S3
-                self.host = self.settings.aws_s3_bucket
+                self.host = get_config_attr(config, 'aws_s3_bucket')
             else:
-                self.host = f'{self.settings.aws_s3_bucket}.s3.amazonaws.com'
+                self.host = f'{bucket}.s3.amazonaws.com'
 
         self.endpoint = f'https://{self.host}'
-        if not (self.settings.aws_access_key and self.settings.aws_secret_key):
-            logger.warning('settings.aws_access_key and settings.aws_secret_key must be set to use AWS')
 
     async def get(self, path: str = '', *, params: Optional[Dict[str, Any]] = None) -> Response:
         return await self.request('GET', path=path, params=params)
@@ -120,7 +117,7 @@ class AwsClient:
             method=method,
             path=url.path,
             query=url.query,
-            access_key=self.settings.aws_access_key,
+            access_key=self.aws_access_key,
             algorithm=_AUTH_ALGORITHM,
             x_amz_date=x_amz_date,
             auth_request=_AWS_AUTH_REQUEST,
@@ -138,7 +135,7 @@ class AwsClient:
         s2s = _STRING_TO_SIGN.format(canonical_request_hash=hashlib.sha256(canonical_request).hexdigest(), **ctx)
 
         key_parts = (
-            b'AWS4' + self.settings.aws_secret_key.encode(),
+            b'AWS4' + self.aws_secret_key.encode(),
             date_stamp,
             self.region,
             self.service,

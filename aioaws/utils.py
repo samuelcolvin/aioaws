@@ -1,22 +1,26 @@
 import asyncio
 from datetime import datetime, timezone
-from typing import Any, Awaitable, Iterable, List, Optional, Protocol
+from typing import Any, Awaitable, Iterable, List, Optional
 
-__all__ = 'Settings', 'to_unix_s', 'utcnow', 'ManyTasks'
+from .config import BaseConfigProtocol
 
-
-class Settings(Protocol):
-    aws_access_key: str
-    aws_secret_key: str
-
-    aws_s3_bucket: str
-    aws_s3_region: str
-
-    aws_ses_region: str
+__all__ = 'get_config_attr', 'to_unix_s', 'utcnow', 'ManyTasks'
 
 
 EPOCH = datetime(1970, 1, 1)
 EPOCH_TZ = EPOCH.replace(tzinfo=timezone.utc)
+
+
+def get_config_attr(config: BaseConfigProtocol, name: str) -> str:
+    try:
+        s = getattr(config, name)
+    except AttributeError:
+        raise TypeError(f'config has not attribute {name}')
+
+    if isinstance(s, str):
+        return s
+    else:
+        raise TypeError(f'config.{name} must be a string not {s.__class__.__name__}')
 
 
 def to_unix_s(dt: datetime) -> int:

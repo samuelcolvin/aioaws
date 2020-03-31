@@ -65,7 +65,7 @@ jobs:
       - run: twine check dist/*
 
       - name: check tag
-        run: ./tests/check_tag.py
+        run: PACKAGE=aioaws python <(curl -Ls https://git.io/JvQsH)
 
       - name: upload to pypi
         run: twine upload dist/*

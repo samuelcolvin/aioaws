@@ -1,22 +1,11 @@
-from dataclasses import dataclass
 from datetime import datetime
 
 from aioaws import S3Client
-
-
-@dataclass
-class Settings:
-    aws_access_key: str = 'testing'
-    aws_secret_key: str = 'testing'
-
-    aws_s3_bucket: str = 'testing'
-    aws_s3_region: str = 'testing'
-
-    aws_ses_region: str = 'testing'
+from aioaws.config import S3Config
 
 
 def tests_upload_url():
-    s3 = S3Client('-', Settings())
+    s3 = S3Client('-', S3Config('testing', 'testing', 'testing', 'testing'))
     d = s3.signed_upload_url(
         path='testing/', filename='test.png', content_type='image/png', size=123, expires=datetime(2032, 1, 1)
     )

@@ -13,8 +13,9 @@ from xml.etree import ElementTree
 from httpx import AsyncClient
 from pydantic import BaseModel, validator
 
+from .config import S3ConfigProtocol
 from .core import AwsClient
-from .utils import ManyTasks, Settings, to_unix_s, utcnow
+from .utils import ManyTasks, to_unix_s, utcnow
 
 __all__ = 'S3Client', 'S3File'
 
@@ -44,19 +45,19 @@ class S3File(BaseModel):
 
 
 class S3Client:
-    __slots__ = '_settings', '_aws_client'
+    __slots__ = '_config', '_aws_client'
 
-    def __init__(self, async_client: AsyncClient, settings: Settings):
-        self._aws_client = AwsClient(async_client, settings, 's3')
-        self._settings = settings
+    def __init__(self, async_client: AsyncClient, config: S3ConfigProtocol):
+        self._aws_client = AwsClient(async_client, config, 's3')
+        self._config = config
 
-    async def list(
-        self, prefix: Optional[str] = None, *, continuation_token: Optional[str] = None
-    ) -> AsyncIterable[S3File]:
+    async def list(self, prefix: Optional[str] = None) -> AsyncIterable[S3File]:
         """
         List S3 files with the given prefix
         """
-        assert prefix is None or not prefix.startswith('/'), 'the prefix to filter by should not start with a "/"'
+        assert prefix is None or not prefix.startswith('/'), 'the prefix to filter by should not start with "/"'
+        continuation_token = None
+
         while True:
             params = {'list-type': 2, 'prefix': prefix, 'continuation-token': continuation_token}
             r = await self._aws_client.get(params={k: v for k, v in params.items() if v is not None})
@@ -64,13 +65,13 @@ class S3Client:
             xml_root = ElementTree.fromstring(xmlns_re.sub(b'', r.content))
             for c in xml_root.findall('Contents'):
                 yield S3File.parse_obj({v.tag: v.text for v in c})
-            if (t := xml_root.find('IsTruncated')) and t.text == 'false':
+            if (t := xml_root.find('IsTruncated')) is not None and t.text == 'false':
                 break
 
             if t := xml_root.find('NextContinuationToken'):
                 continuation_token = t.text
             else:
-                raise RuntimeError(f'unexpected response from S3: {r.content!r}')
+                raise RuntimeError(f'unexpected response from S3: {r.text!r}')
 
     async def delete(self, *files: Union[str, S3File]) -> List[str]:
         """
@@ -124,12 +125,12 @@ class S3Client:
         assert not path.startswith('/'), 'path should not start with /'
         min_expires = to_unix_s(utcnow()) + max_age
         expires = int(ceil(min_expires / expiry_rounding) * expiry_rounding)
-        to_sign = f'GET\n\n\n{expires}\n/{self._settings.aws_s3_bucket}/{path}'
+        to_sign = f'GET\n\n\n{expires}\n/{self._config.aws_s3_bucket}/{path}'
         signature = self._signature(to_sign.encode())
-        args = {'AWSAccessKeyId': self._settings.aws_access_key, 'Signature': signature, 'Expires': expires}
+        args = {'AWSAccessKeyId': self._config.aws_access_key, 'Signature': signature, 'Expires': expires}
         if version:
             args['v'] = version
-        return f'https://{self._settings.aws_s3_bucket}/{path}?{urlencode(args)}'
+        return f'https://{self._config.aws_s3_bucket}/{path}?{urlencode(args)}'
 
     def signed_upload_url(
         self,
@@ -148,13 +149,13 @@ class S3Client:
         assert not path.startswith('/'), 'path must not start with "/"'
         key = path + filename
         policy_conditions = [
-            {'bucket': self._settings.aws_s3_bucket},
+            {'bucket': self._config.aws_s3_bucket},
             {'key': key},
             {'content-type': content_type},
             ['content-length-range', size, size],
         ]
 
-        fields = {'Key': key, 'Content-Type': content_type, 'AWSAccessKeyId': self._settings.aws_access_key}
+        fields = {'Key': key, 'Content-Type': content_type, 'AWSAccessKeyId': self._config.aws_access_key}
         if content_disp:
             disp = {'Content-Disposition': f'attachment; filename="{filename}"'}
             policy_conditions.append(disp)
@@ -166,10 +167,10 @@ class S3Client:
         }
         b64_policy: bytes = base64.b64encode(json.dumps(policy).encode())
         fields.update(Policy=b64_policy.decode(), Signature=self._signature(b64_policy))
-        return dict(url=f'https://{self._settings.aws_s3_bucket}/', fields=fields)
+        return dict(url=f'https://{self._config.aws_s3_bucket}/', fields=fields)
 
     def _signature(self, to_sign: bytes) -> str:
-        s = hmac.new(self._settings.aws_secret_key.encode(), to_sign, hashlib.sha1).digest()
+        s = hmac.new(self._config.aws_secret_key.encode(), to_sign, hashlib.sha1).digest()
         return base64.b64encode(s).decode()
 
 

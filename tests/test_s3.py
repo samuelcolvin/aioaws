@@ -1,7 +1,8 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
-from aioaws import S3Client
-from aioaws.config import S3Config
+from httpx import AsyncClient
+
+from aioaws.s3 import S3Client, S3Config
 
 
 def tests_upload_url():
@@ -25,3 +26,16 @@ def tests_upload_url():
             'Signature': 'gT3B054t0xopAJpy1JYq6678xN8=',
         },
     }
+
+
+async def test_list(client: AsyncClient):
+    s3 = S3Client(client, S3Config('testing', 'testing', 'testing', 'testing'))
+    files = [f async for f in s3.list()]
+    assert len(files) == 3
+    assert files[0].dict() == dict(
+        key='foo/bar/1.png',
+        last_modified=datetime(2032, 1, 1, 12, 34, 56, tzinfo=timezone.utc),
+        size=123,
+        e_tag='aaa',
+        storage_class='STANDARD',
+    )

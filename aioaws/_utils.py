@@ -1,17 +1,18 @@
 import asyncio
 from datetime import datetime, timezone
-from typing import Any, Awaitable, Iterable, List, Optional
-
-from .config import BaseConfigProtocol
+from typing import TYPE_CHECKING, Any, Awaitable, Iterable, List, Optional
 
 __all__ = 'get_config_attr', 'to_unix_s', 'utcnow', 'ManyTasks'
+
+if TYPE_CHECKING:
+    from ._types import BaseConfigProtocol
 
 
 EPOCH = datetime(1970, 1, 1)
 EPOCH_TZ = EPOCH.replace(tzinfo=timezone.utc)
 
 
-def get_config_attr(config: BaseConfigProtocol, name: str) -> str:
+def get_config_attr(config: 'BaseConfigProtocol', name: str) -> str:
     try:
         s = getattr(config, name)
     except AttributeError:

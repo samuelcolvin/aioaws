@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 from typing import Protocol
 
 
@@ -9,14 +8,6 @@ class BaseConfigProtocol(Protocol):
 
 
 class S3ConfigProtocol(Protocol):
-    aws_access_key: str
-    aws_secret_key: str
-    aws_region: str
-    aws_s3_bucket: str
-
-
-@dataclass
-class S3Config:
     aws_access_key: str
     aws_secret_key: str
     aws_region: str

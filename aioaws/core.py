@@ -4,15 +4,17 @@ import hmac
 import logging
 from binascii import hexlify
 from functools import reduce
-from typing import Any, Dict, Literal, Optional
+from typing import TYPE_CHECKING, Any, Dict, Literal, Optional
 
 from httpx import URL, AsyncClient, Response
 
-from .config import BaseConfigProtocol
-from .utils import get_config_attr, utcnow
+from ._utils import get_config_attr, utcnow
+
+if TYPE_CHECKING:
+    from ._types import BaseConfigProtocol
 
 __all__ = ('AwsClient',)
-logger = logging.getLogger('aws.core')
+logger = logging.getLogger('aioaws.core')
 
 _AWS_AUTH_REQUEST = 'aws4_request'
 _CONTENT_TYPE = 'application/x-www-form-urlencoded'
@@ -40,7 +42,7 @@ class AwsClient:
     HTTP client for AWS with authentication
     """
 
-    def __init__(self, client: AsyncClient, config: BaseConfigProtocol, service: Literal['s3', 'ses']):
+    def __init__(self, client: AsyncClient, config: 'BaseConfigProtocol', service: Literal['s3', 'ses']):
         self.client = client
         self.aws_access_key = get_config_attr(config, 'aws_access_key')
         self.aws_secret_key = get_config_attr(config, 'aws_secret_key')

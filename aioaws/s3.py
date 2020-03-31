@@ -3,27 +3,38 @@ import hashlib
 import hmac
 import json
 import re
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from itertools import chain
 from math import ceil
-from typing import Any, AsyncIterable, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, AsyncIterable, Dict, List, Optional, Union
 from urllib.parse import urlencode
 from xml.etree import ElementTree
 
 from httpx import AsyncClient
 from pydantic import BaseModel, validator
 
-from .config import S3ConfigProtocol
+from ._utils import ManyTasks, to_unix_s, utcnow
 from .core import AwsClient
-from .utils import ManyTasks, to_unix_s, utcnow
 
-__all__ = 'S3Client', 'S3File'
+if TYPE_CHECKING:
+    from ._types import S3ConfigProtocol
+
+__all__ = 'S3Client', 'S3Config', 'S3File'
 
 # rounding of download link expiry time, this allows the CDN to efficiently cache download links
 expiry_rounding = 100
 # removing xmlns="http://s3.amazonaws.com/doc/2006-03-01/" from xml makes it much easier to parse
 xmlns = 'http://s3.amazonaws.com/doc/2006-03-01/'
 xmlns_re = re.compile(f' xmlns="{re.escape(xmlns)}"'.encode())
+
+
+@dataclass
+class S3Config:
+    aws_access_key: str
+    aws_secret_key: str
+    aws_region: str
+    aws_s3_bucket: str
 
 
 class S3File(BaseModel):
@@ -47,7 +58,7 @@ class S3File(BaseModel):
 class S3Client:
     __slots__ = '_config', '_aws_client'
 
-    def __init__(self, async_client: AsyncClient, config: S3ConfigProtocol):
+    def __init__(self, async_client: AsyncClient, config: 'S3ConfigProtocol'):
         self._aws_client = AwsClient(async_client, config, 's3')
         self._config = config
 

@@ -1,5 +1,6 @@
 import base64
 import json
+import os
 
 import pytest
 from foxglove.test_server import DummyServer
@@ -180,3 +181,23 @@ async def test_webhook_subscribe(client: AsyncClient, aws: DummyServer):
     info = await SesWebhookInfo.build('Basic ZEdWemRHbHVadz09', json.dumps(d), base64.b64encode(b'testing'), client)
     assert info is None
     assert aws.log == ['GET /status/200/ > 200']
+
+
+real_ses_test = pytest.mark.skipif(not os.getenv('TEST_AWS_ACCESS_KEY'), reason='requires TEST_AWS_ACCESS_KEY env var')
+
+
+@real_ses_test
+async def test_send_real():
+    access_key = os.getenv('TEST_AWS_ACCESS_KEY')
+    secret_key = os.getenv('TEST_AWS_SECRET_KEY')
+    async with AsyncClient() as client:
+        ses = SesClient(client, SesConfig(access_key, secret_key, 'eu-west-1'))
+
+        message_id = await ses.send_email(
+            'testing@scolvin.com',
+            'test email',
+            [Recipient('success@simulator.amazonses.com', 'Test', 'Person')],
+            'this is a test email',
+            html_body='This is a <b>test</b> email.',
+        )
+        assert len(message_id) > 20

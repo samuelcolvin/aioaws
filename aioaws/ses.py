@@ -7,7 +7,7 @@ from email.message import EmailMessage
 from email.mime.base import MIMEBase
 from email.utils import formataddr
 from pathlib import Path
-from typing import TYPE_CHECKING, Dict, Iterable, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Tuple, Union
 from urllib.parse import urlencode
 
 import aiofiles
@@ -52,13 +52,6 @@ class Recipient:
         return formataddr((name, self.email))
 
 
-def as_recipient(r: Union[str, Recipient]) -> Recipient:
-    if isinstance(r, Recipient):
-        return r
-    else:
-        return Recipient(r)
-
-
 class SesClient:
     __slots__ = '_config', '_aws_client'
 
@@ -77,6 +70,9 @@ class SesClient:
         cc: Optional[List[Union[str, Recipient]]] = None,
         bcc: Optional[List[Union[str, Recipient]]] = None,
         attachments: Optional[List[SesAttachment]] = None,
+        unsubscribe_link: Optional[str] = None,
+        configuration_set: Optional[str] = None,
+        message_tags: Optional[Dict[str, Any]] = None,
         smtp_headers: Optional[Dict[str, str]] = None,
     ) -> str:
         # TODO explicitly list X-SES-* headers as arguments
@@ -100,6 +96,13 @@ class SesClient:
         if bcc:
             bcc_r = [as_recipient(r) for r in bcc]
             email_msg['Bcc'] = ', '.join(r.display() for r in bcc_r)
+
+        if unsubscribe_link:
+            email_msg['List-Unsubscribe'] = f'<{unsubscribe_link}>'
+        if configuration_set:
+            email_msg['X-SES-CONFIGURATION-SET'] = configuration_set
+        if message_tags:
+            email_msg['X-SES-MESSAGE-TAGS'] = ', '.join(f'{k}={v}' for k, v in message_tags.items())
 
         if smtp_headers:
             for name, value in smtp_headers.items():
@@ -146,6 +149,13 @@ class SesClient:
         data = urlencode(form_data).encode()
         r = await self._aws_client.post('/', data=data)
         return re.search('<MessageId>(.+?)</MessageId>', r.text).group(1)  # type: ignore
+
+
+def as_recipient(r: Union[str, Recipient]) -> Recipient:
+    if isinstance(r, Recipient):
+        return r
+    else:
+        return Recipient(r)
 
 
 async def prepare_attachment(a: SesAttachment) -> Tuple[MIMEBase, int]:

@@ -1,6 +1,7 @@
 import pytest
 from foxglove.test_server import DummyServer
 from httpx import AsyncClient
+from pytest_toolbox.comparison import RegexStr
 
 from aioaws.ses import Recipient, SesAttachment, SesClient, SesConfig
 
@@ -21,9 +22,12 @@ async def test_send(client: AsyncClient, aws: DummyServer):
 
     assert len(aws.app['emails']) == 1
     eml = aws.app['emails'][0]
-    assert eml['body']['Action'] == 'SendRawEmail'
-    assert eml['body']['Source'] == 'testing@sender.com'
-    assert eml['body']['Destination.ToAddresses.member.1'] == 'testing@recipient.com'
+    assert eml['body'] == {
+        'Action': 'SendRawEmail',
+        'Source': 'testing@sender.com',
+        'RawMessage.Data': RegexStr('.+'),
+        'Destination.ToAddresses.member.1': 'testing@recipient.com',
+    }
     assert eml['email'] == {
         'Subject': 'test email',
         'From': 'testing@sender.com',
@@ -82,6 +86,17 @@ async def test_send_names(client: AsyncClient, aws: DummyServer):
     )
     assert len(aws.app['emails']) == 1
     eml = aws.app['emails'][0]
+    assert eml['body'] == {
+        'Action': 'SendRawEmail',
+        'Source': 'testing@sender.com',
+        'RawMessage.Data': RegexStr('.+'),
+        'Destination.ToAddresses.member.1': 'testing@example.com',
+        'Destination.CcAddresses.member.1': 'cc1@example.com',
+        'Destination.CcAddresses.member.2': 'cc2@example.com',
+        'Destination.CcAddresses.member.3': 'cc3@example.com',
+        'Destination.CcAddresses.member.4': 'cc4@example.com',
+        'Destination.BccAddresses.member.1': 'bcc@exmaple.com',
+    }
     assert eml['email'] == {
         'Subject': 'test email',
         'From': 'testing@sender.com',
@@ -90,5 +105,32 @@ async def test_send_names(client: AsyncClient, aws: DummyServer):
         'To': 'John Doe <testing@example.com>',
         'Cc': 'cc1@example.com, CC2 <cc2@example.com>, CC3 <cc3@example.com>,\n "Anna, Bob CC4" <cc4@example.com>',
         'Bcc': 'bcc@exmaple.com',
+        'payload': [{'Content-Type': 'text/plain', 'payload': 'this is a test email\n'}],
+    }
+
+
+async def test_custom_headers(client: AsyncClient, aws: DummyServer):
+    ses = SesClient(client, SesConfig('test_access_key', 'test_secret_key', 'testing-region-1'))
+
+    await ses.send_email(
+        'testing@sender.com',
+        'test email',
+        ['testing@example.com'],
+        'this is a test email',
+        unsubscribe_link='https://example.com/unsubscribe',
+        configuration_set='testing-set',
+        message_tags={'foo': 'bar', 'another': 1},
+    )
+    assert len(aws.app['emails']) == 1
+    eml = aws.app['emails'][0]
+    assert eml['email'] == {
+        'Subject': 'test email',
+        'From': 'testing@sender.com',
+        'To': 'testing@example.com',
+        'List-Unsubscribe': '<https://example.com/unsubscribe>',
+        'X-SES-CONFIGURATION-SET': 'testing-set',
+        'X-SES-MESSAGE-TAGS': 'foo=bar, another=1',
+        'Content-Transfer-Encoding': '7bit',
+        'MIME-Version': '1.0',
         'payload': [{'Content-Type': 'text/plain', 'payload': 'this is a test email\n'}],
     }

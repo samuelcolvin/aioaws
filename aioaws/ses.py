@@ -1,12 +1,16 @@
 import base64
+import json
+import logging
 import mimetypes
 import re
 from dataclasses import dataclass
 from email.encoders import encode_base64
 from email.message import EmailMessage
 from email.mime.base import MIMEBase
+from email.utils import formataddr
 from pathlib import Path
-from typing import TYPE_CHECKING, Dict, List, Optional, Set, Tuple, Union
+from secrets import compare_digest
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Literal, Optional, Tuple, Union
 from urllib.parse import urlencode
 
 import aiofiles
@@ -17,7 +21,8 @@ from .core import AwsClient
 if TYPE_CHECKING:
     from ._types import BaseConfigProtocol
 
-__all__ = 'SesAttachment', 'SesClient', 'SesConfig'
+__all__ = 'SesAttachment', 'SesClient', 'SesConfig', 'Recipient', 'SesWebhookInfo', 'SesWebhookAuthError'
+logger = logging.getLogger('aioaws.ses')
 max_total_size = 10 * 1024 * 1024
 
 
@@ -35,6 +40,22 @@ class SesAttachment:
     mime_type: Optional[str] = None
 
 
+@dataclass
+class Recipient:
+    email: str
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+
+    def display(self) -> str:
+        if self.first_name and self.last_name:
+            name: Optional[str] = f'{self.first_name} {self.last_name}'
+        elif self.first_name or self.last_name:
+            name = self.first_name or self.last_name
+        else:
+            name = None
+        return formataddr((name, self.email))
+
+
 class SesClient:
     __slots__ = '_config', '_aws_client'
 
@@ -44,15 +65,18 @@ class SesClient:
 
     async def send_email(
         self,
-        e_from: str,
+        e_from: Union[str, Recipient],
         subject: str,
-        to: Optional[Set[str]] = None,
+        to: Optional[List[Union[str, Recipient]]] = None,
         text_body: Optional[str] = None,
         html_body: Optional[str] = None,
         *,
-        cc: Optional[Set[str]] = None,
-        bcc: Optional[Set[str]] = None,
+        cc: Optional[List[Union[str, Recipient]]] = None,
+        bcc: Optional[List[Union[str, Recipient]]] = None,
         attachments: Optional[List[SesAttachment]] = None,
+        unsubscribe_link: Optional[str] = None,
+        configuration_set: Optional[str] = None,
+        message_tags: Optional[Dict[str, Any]] = None,
         smtp_headers: Optional[Dict[str, str]] = None,
     ) -> str:
         # TODO explicitly list X-SES-* headers as arguments
@@ -61,7 +85,32 @@ class SesClient:
 
         email_msg = EmailMessage()
         email_msg['Subject'] = subject
-        email_msg['From'] = e_from
+        e_from_recipient = as_recipient(e_from)
+        email_msg['From'] = e_from_recipient.display()
+
+        to_r: List[Recipient] = []
+        cc_r: List[Recipient] = []
+        bcc_r: List[Recipient] = []
+        if to:
+            to_r = [as_recipient(r) for r in to]
+            email_msg['To'] = ', '.join(r.display() for r in to_r)
+        if cc:
+            cc_r = [as_recipient(r) for r in cc]
+            email_msg['Cc'] = ', '.join(r.display() for r in cc_r)
+        if bcc:
+            bcc_r = [as_recipient(r) for r in bcc]
+            email_msg['Bcc'] = ', '.join(r.display() for r in bcc_r)
+
+        if unsubscribe_link:
+            email_msg['List-Unsubscribe'] = f'<{unsubscribe_link}>'
+        if configuration_set:
+            email_msg['X-SES-CONFIGURATION-SET'] = configuration_set
+        if message_tags:
+            email_msg['X-SES-MESSAGE-TAGS'] = ', '.join(f'{k}={v}' for k, v in message_tags.items())
+
+        if smtp_headers:
+            for name, value in smtp_headers.items():
+                email_msg[name] = value
 
         email_msg.set_content(text_body)
         if html_body:
@@ -73,29 +122,14 @@ class SesClient:
             total_size += size
             if total_size > max_total_size:
                 raise ValueError(f'attachment size {total_size} greater than 10MB')
+            if email_msg.get_content_maintype() == 'text':
+                email_msg.make_mixed()
             email_msg.attach(attachment_msg)
 
-        if to:
-            email_msg['To'] = ','.join(to)
-        if cc:
-            email_msg['Cc'] = ','.join(cc)
-        if bcc:
-            email_msg['Bcc'] = ','.join(bcc)
-
-        if smtp_headers:
-            for name, value in smtp_headers.items():
-                email_msg[name] = value
-
-        return await self.send_raw_email(e_from, email_msg, to=to, cc=cc, bcc=bcc)
+        return await self.send_raw_email(e_from_recipient.email, email_msg, to=to_r, cc=cc_r, bcc=bcc_r)
 
     async def send_raw_email(
-        self,
-        e_from: str,
-        email_msg: EmailMessage,
-        *,
-        to: Optional[Set[str]] = None,
-        cc: Optional[Set[str]] = None,
-        bcc: Optional[Set[str]] = None,
+        self, e_from: str, email_msg: EmailMessage, *, to: List[Recipient], cc: List[Recipient], bcc: List[Recipient],
     ) -> str:
         if not any((to, cc, bcc)):
             raise TypeError('either "to", "cc", or "bcc" must be provided when sending emails')
@@ -106,19 +140,26 @@ class SesClient:
             'RawMessage.Data': base64.b64encode(email_msg.as_string().encode()),
         }
 
-        def add_addresses(name: str, addresses: Set[str]) -> None:
+        def add_addresses(name: str, addresses: Iterable[str]) -> None:
             form_data.update({f'Destination.{name}.member.{i}': t.encode() for i, t in enumerate(addresses, start=1)})
 
         if to:
-            add_addresses('ToAddresses', to)
+            add_addresses('ToAddresses', (r.email for r in to))
         if cc:
-            add_addresses('CcAddresses', cc)
+            add_addresses('CcAddresses', (r.email for r in cc))
         if bcc:
-            add_addresses('BccAddresses', bcc)
+            add_addresses('BccAddresses', (r.email for r in bcc))
 
         data = urlencode(form_data).encode()
-        r = await self._aws_client.post('', data=data)
+        r = await self._aws_client.post('/', data=data)
         return re.search('<MessageId>(.+?)</MessageId>', r.text).group(1)  # type: ignore
+
+
+def as_recipient(r: Union[str, Recipient]) -> Recipient:
+    if isinstance(r, Recipient):
+        return r
+    else:
+        return Recipient(r)
 
 
 async def prepare_attachment(a: SesAttachment) -> Tuple[MIMEBase, int]:
@@ -144,3 +185,68 @@ async def prepare_attachment(a: SesAttachment) -> Tuple[MIMEBase, int]:
 
     msg.add_header('Content-Disposition', 'attachment', filename=filename)
     return msg, len(data)
+
+
+class SesWebhookAuthError(ValueError):
+    def __init__(self, message: str, headers: Dict[str, str] = None):
+        super().__init__(message)
+        self.message = message
+        self.headers = headers or {}
+
+
+@dataclass
+class SesWebhookInfo:
+    message_id: str
+    event_type: Literal['send', 'open', 'click', 'bounce', 'complaint']
+    unsubscribe: bool
+    extra: Dict[str, Any]
+    raw: Dict[str, Any]
+
+    @classmethod
+    async def build(
+        cls, auth_header: Optional[str], request_text: str, aws_ses_webhook_auth: bytes, async_client: AsyncClient
+    ) -> Optional['SesWebhookInfo']:
+        expected_auth_header = f'Basic {base64.b64encode(aws_ses_webhook_auth).decode()}'
+        if not compare_digest(expected_auth_header, auth_header or ''):
+            raise SesWebhookAuthError('Invalid basic auth', headers={'WWW-Authenticate': 'Basic'})
+
+        request_data = json.loads(request_text)
+        sns_type = request_data['Type']
+        if sns_type == 'SubscriptionConfirmation':
+            logger.info('confirming aws Subscription')
+            sub_url = request_data['SubscribeURL']
+            r = await async_client.get(sub_url)
+            r.raise_for_status()
+            return None
+
+        assert sns_type == 'Notification', sns_type
+        raw_message = request_data['Message']
+        message = json.loads(raw_message)
+
+        event_type = message['eventType'].lower()
+        message_id = message['mail']['messageId']
+        logger.info('%s for message %s', event_type, message_id)
+
+        data = message.get(event_type) or {}
+        extra = {
+            'delivery_time': data.get('processingTimeMillis'),
+            'ip_address': data.get('ipAddress'),
+            'user_agent': data.get('userAgent'),
+            'link': data.get('link'),
+            'bounce_type': data.get('bounceType'),
+            'bounce_subtype': data.get('bounceSubType'),
+            'reporting_mta': data.get('reportingMTA'),
+            'feedback_id': data.get('feedbackId'),
+            'complaint_feedback_type': data.get('complaintFeedbackType'),
+        }
+        extra = {k: v for k, v in extra.items() if v is not None}
+        unsubscribe = False
+        if event_type == 'bounce':
+            unsubscribe = data.get('bounceType') == 'Permanent'
+        elif event_type == 'complaint':
+            unsubscribe = True
+
+        if event_type not in {'send', 'open', 'click', 'bounce', 'complaint'}:
+            logger.warning('unknown aws webhook event %s', event_type, extra={'data': {'message': message}})
+
+        return cls(message_id=message_id, event_type=event_type, unsubscribe=unsubscribe, extra=extra, raw=message)

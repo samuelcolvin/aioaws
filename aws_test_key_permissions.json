@@ -1,0 +1,23 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ses:SendEmail",
+        "ses:SendRawEmail"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "ForAllValues:StringLike": {
+          "ses:Recipients": [
+            "*@simulator.amazonses.com"
+          ]
+        },
+        "StringEquals": {
+          "ses:FromAddress": "testing@scolvin.com"
+        }
+      }
+    }
+  ]
+}

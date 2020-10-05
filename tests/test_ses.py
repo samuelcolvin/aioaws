@@ -72,6 +72,38 @@ async def test_send_email_attachment(client: AsyncClient, aws: DummyServer):
     }
 
 
+async def test_attachment_path(client: AsyncClient, aws: DummyServer, tmp_path):
+    ses = SesClient(client, SesConfig('test_access_key', 'test_secret_key', 'testing-region-1'))
+
+    p = tmp_path / 'testing.txt'
+    p.write_text('hello')
+
+    await ses.send_email(
+        'testing@sender.com',
+        'test with attachment',
+        ['testing@recipient.com'],
+        html_body='<b>html body</b>',
+        attachments=[SesAttachment(file=p)],
+    )
+    assert len(aws.app['emails']) == 1
+    email = aws.app['emails'][0]['email']
+    assert email == {
+        'Subject': 'test with attachment',
+        'From': 'testing@sender.com',
+        'To': 'testing@recipient.com',
+        'MIME-Version': '1.0',
+        'payload': [
+            {'Content-Type': 'text/plain', 'payload': '\n'},
+            {'Content-Type': 'text/html', 'payload': '<b>html body</b>\n'},
+            {
+                'Content-Type': 'text/plain',
+                'payload': 'hello',
+                'Content-Disposition': 'attachment; filename="testing.txt"',
+            },
+        ],
+    }
+
+
 async def test_send_names(client: AsyncClient, aws: DummyServer):
     ses = SesClient(client, SesConfig('test_access_key', 'test_secret_key', 'testing-region-1'))
 
@@ -124,6 +156,7 @@ async def test_custom_headers(client: AsyncClient, aws: DummyServer):
         unsubscribe_link='https://example.com/unsubscribe',
         configuration_set='testing-set',
         message_tags={'foo': 'bar', 'another': 1},
+        smtp_headers={'Spam': 'Cake'},
     )
     assert len(aws.app['emails']) == 1
     eml = aws.app['emails'][0]
@@ -136,8 +169,31 @@ async def test_custom_headers(client: AsyncClient, aws: DummyServer):
         'X-SES-MESSAGE-TAGS': 'foo=bar, another=1',
         'Content-Transfer-Encoding': '7bit',
         'MIME-Version': '1.0',
+        'Spam': 'Cake',
         'payload': [{'Content-Type': 'text/plain', 'payload': 'this is a test email\n'}],
     }
+
+
+async def test_encoded_unsub(client: AsyncClient, aws: DummyServer):
+    ses = SesClient(client, SesConfig('test_access_key', 'test_secret_key', 'testing-region-1'))
+    unsub_link = 'https://www.example.com/unsubscrible?blob=?blob=$MzMgMTYwMTY3MDEyOCBMMzcbN_nhcDZNg-6D=='
+    await ses.send_email(
+        'testing@sender.com',
+        'test email',
+        ['testing@recipient.com'],
+        'this is a test email',
+        unsubscribe_link=unsub_link,
+    )
+    email = aws.app['emails'][0]['email']
+    assert email['List-Unsubscribe'] == f'<{unsub_link}>'
+
+
+async def test_no_recipients(client: AsyncClient, aws: DummyServer):
+    ses = SesClient(client, SesConfig('test_access_key', 'test_secret_key', 'testing-region-1'))
+    with pytest.raises(TypeError, match='either "to", "cc", or "bcc" must be provided'):
+        await ses.send_email('testing@sender.com', 'test email', None, 'xx')
+
+    assert aws.log == []
 
 
 async def test_webhook_open(client: AsyncClient):

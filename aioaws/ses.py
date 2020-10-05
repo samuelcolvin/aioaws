@@ -68,7 +68,7 @@ class SesClient:
         e_from: Union[str, SesRecipient],
         subject: str,
         to: Optional[List[Union[str, SesRecipient]]] = None,
-        text_body: Optional[str] = None,
+        text_body: str = '',
         html_body: Optional[str] = None,
         *,
         cc: Optional[List[Union[str, SesRecipient]]] = None,
@@ -79,9 +79,6 @@ class SesClient:
         message_tags: Optional[Dict[str, Any]] = None,
         smtp_headers: Optional[Dict[str, str]] = None,
     ) -> str:
-        # TODO explicitly list X-SES-* headers as arguments
-        if not any((text_body, html_body)):
-            raise TypeError('either "text_body" or "html_body" must be provided when sending emails')
 
         email_msg = EmailMessage()
         email_msg['Subject'] = subject

@@ -1,5 +1,6 @@
 import base64
 from email import message_from_bytes
+from email.header import decode_header
 from typing import Any, Dict
 from uuid import uuid4
 
@@ -12,8 +13,15 @@ def ses_email_data(data: Dict[str, str]) -> Dict[str, Any]:
     """
     msg_raw = base64.b64decode(data['RawMessage.Data'])
     msg = message_from_bytes(msg_raw)
-    d = dict(msg)  # type: ignore
-    d.pop('Content-Type', None)
+    d: Dict[str, Any] = {}
+    for k, v in msg.items():
+        if k != 'Content-Type':
+            value = decode_header(v)[0][0]
+            if isinstance(value, bytes):
+                d[k] = value.decode()
+            else:
+                d[k] = value
+
     d['payload'] = []
     for part in msg.walk():
         if payload := part.get_payload(decode=True):

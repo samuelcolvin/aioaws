@@ -41,6 +41,9 @@ jobs:
       run: |
         make test
         coverage xml
+      env:
+        TEST_AWS_ACCESS_KEY: ${{ secrets.TEST_AWS_ACCESS_KEY }}
+        TEST_AWS_SECRET_KEY: ${{ secrets.TEST_AWS_SECRET_KEY }}
 
     - uses: codecov/codecov-action@v1.0.13
       with:

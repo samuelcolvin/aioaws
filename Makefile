@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := all
-isort = isort -rc aioaws tests
-black = black -S -l 120 --target-version py36 aioaws tests
+isort = isort aioaws tests
+black = black -S -l 120 --target-version py37 aioaws tests
 
 .PHONY: install
 install:
@@ -16,8 +16,8 @@ format:
 .PHONY: lint
 lint:
 	flake8 aioaws/ tests/
-	$(isort) --check-only
-	$(black) --check
+	$(isort) --check-only --df
+	$(black) --check --diff
 
 .PHONY: mypy
 mypy:

@@ -84,7 +84,10 @@ class AwsClient:
     ) -> Response:
         url = URL(f'https://{self.host}{path}', params=[(k, v) for k, v in sorted((params or {}).items())])
         r = await self.client.request(
-            method, url, data=data, headers=self._auth_headers(method, url, data=data, content_type=content_type)
+            method,
+            url,
+            data=data,  # type: ignore
+            headers=self._auth_headers(method, url, data=data, content_type=content_type),
         )
         if r.status_code != 200:
             raise RequestError(r)

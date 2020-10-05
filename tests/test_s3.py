@@ -1,11 +1,14 @@
 from datetime import datetime, timezone
 
+import pytest
 from httpx import AsyncClient
 
 from aioaws.s3 import S3Client, S3Config
 
+pytestmark = pytest.mark.asyncio
 
-def tests_upload_url():
+
+def test_upload_url():
     s3 = S3Client('-', S3Config('testing', 'testing', 'testing', 'testing'))
     d = s3.signed_upload_url(
         path='testing/', filename='test.png', content_type='image/png', size=123, expires=datetime(2032, 1, 1)

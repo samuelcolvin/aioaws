@@ -1,23 +1,38 @@
+import asyncio
+
 import pytest
-from atoolbox.test_utils import DummyServer, create_dummy_server
+from foxglove.test_server import DummyServer, create_dummy_server
 from httpx import AsyncClient
 
 from . import dummy_server
 
 
+@pytest.fixture(name='loop')
+def _fix_loop():
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    return loop
+
+
 @pytest.fixture(name='aws')
-async def _fix_aws(loop, aiohttp_server):
+def _fix_aws(loop):
     ctx = {'s3_files': {}}
-    return await create_dummy_server(aiohttp_server, extra_routes=dummy_server.routes, extra_context=ctx)
+    ds = loop.run_until_complete(create_dummy_server(loop, extra_routes=dummy_server.routes, extra_context=ctx))
+    yield ds
+    loop.run_until_complete(ds.stop())
 
 
 class CustomAsyncClient(AsyncClient):
     def __init__(self, *args, local_server, **kwargs):
         super().__init__(*args, **kwargs)
         self.scheme, host_port = local_server.split('://')
-        self.host, self.port = host_port.split(':')
+        self.host, port = host_port.split(':')
+        self.port = int(port)
 
-    def merge_url(self, url):
+    def _merge_url(self, url):
         new_url = url.copy_with(scheme=self.scheme, host=self.host, port=self.port)
         if 's3.' in url.host:
             new_url = new_url.copy_with(path='/s3/')

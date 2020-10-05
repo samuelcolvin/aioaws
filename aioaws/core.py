@@ -51,6 +51,7 @@ class AwsClient:
         if self.service == 'ses':
             self.host = f'email.{self.region}.amazonaws.com'
         else:
+            assert self.service == 's3', self.service
             bucket = get_config_attr(config, 'aws_s3_bucket')
             if '.' in bucket:
                 # assumes the bucket is a domain and is already as a CNAME record for S3

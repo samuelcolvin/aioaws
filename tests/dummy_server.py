@@ -1,11 +1,10 @@
-import base64
-from email import message_from_bytes
 from io import BytesIO
-from typing import Any, Dict
 
 from aiohttp import web
 from aiohttp.web_response import Response
 from PIL import Image, ImageDraw
+
+from aioaws.testing import ses_email_data, ses_send_response
 
 s3_list_response = """\
 <?xml version="1.0" ?>
@@ -52,39 +51,10 @@ async def s3_demo_image(request):
     return Response(body=stream.getvalue())
 
 
-ses_send_response = (
-    '<SendRawEmailResponse xmlns="http://ses.amazonaws.com/doc/2010-12-01/">\n'
-    '  <SendRawEmailResult>\n'
-    '    <MessageId>{message_id}</MessageId>\n'
-    '  </SendRawEmailResult>\n'
-    '  <ResponseMetadata>\n'
-    '    <RequestId>{request_id}</RequestId>\n'
-    '  </ResponseMetadata>\n'
-    '</SendRawEmailResponse>\n'
-)
-
-
-def email_dict(data: Dict[str, str]) -> Dict[str, Any]:
-    msg_raw = base64.b64decode(data['RawMessage.Data'])
-    msg = message_from_bytes(msg_raw)
-    d = dict(msg)
-    d.pop('Content-Type', None)
-    d['payload'] = []
-    for part in msg.walk():
-        if payload := part.get_payload(decode=True):
-            part_info = {'Content-Type': part.get_content_type(), 'payload': payload.decode().replace('\r\n', '\n')}
-            if cd := part['Content-Disposition']:
-                part_info['Content-Disposition'] = cd
-            d['payload'].append(part_info)
-
-    return {'body': dict(data), 'email': d}
-
-
 async def ses_send(request):
     data = await request.post()
-    request.app['emails'].append(email_dict(data))
-    response_body = ses_send_response.format(message_id='123-message-id', request_id='123-request-id')
-    return Response(body=response_body, content_type='text/xml')
+    request.app['emails'].append(ses_email_data(data))
+    return Response(body=ses_send_response('123-message-id', '123-request-id'), content_type='text/xml')
 
 
 routes = [

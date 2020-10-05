@@ -7,7 +7,7 @@ from foxglove.test_server import DummyServer
 from httpx import AsyncClient
 from pytest_toolbox.comparison import RegexStr
 
-from aioaws.ses import Recipient, SesAttachment, SesClient, SesConfig, SesWebhookAuthError, SesWebhookInfo
+from aioaws.ses import SesAttachment, SesClient, SesConfig, SesRecipient, SesWebhookAuthError, SesWebhookInfo
 
 pytestmark = pytest.mark.asyncio
 
@@ -78,13 +78,13 @@ async def test_send_names(client: AsyncClient, aws: DummyServer):
     await ses.send_email(
         'testing@sender.com',
         'test email',
-        [Recipient('testing@example.com', 'John', 'Doe')],
+        [SesRecipient('testing@example.com', 'John', 'Doe')],
         'this is a test email',
         cc=[
-            Recipient('cc1@example.com'),
-            Recipient('cc2@example.com', 'CC2'),
-            Recipient('cc3@example.com', None, 'CC3'),
-            Recipient('cc4@example.com', 'Anna, Bob', 'CC4'),
+            SesRecipient('cc1@example.com'),
+            SesRecipient('cc2@example.com', 'CC2'),
+            SesRecipient('cc3@example.com', None, 'CC3'),
+            SesRecipient('cc4@example.com', 'Anna, Bob', 'CC4'),
         ],
         bcc=['bcc@exmaple.com'],
     )
@@ -196,7 +196,7 @@ async def test_send_real():
         message_id = await ses.send_email(
             'testing@scolvin.com',
             'test email',
-            [Recipient('success@simulator.amazonses.com', 'Test', 'Person')],
+            [SesRecipient('success@simulator.amazonses.com', 'Test', 'Person')],
             'this is a test email',
             html_body='This is a <b>test</b> email.',
         )

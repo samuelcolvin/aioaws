@@ -21,7 +21,7 @@ from .core import AwsClient
 if TYPE_CHECKING:
     from ._types import BaseConfigProtocol
 
-__all__ = 'SesAttachment', 'SesClient', 'SesConfig', 'Recipient', 'SesWebhookInfo', 'SesWebhookAuthError'
+__all__ = 'SesAttachment', 'SesClient', 'SesConfig', 'SesRecipient', 'SesWebhookInfo', 'SesWebhookAuthError'
 logger = logging.getLogger('aioaws.ses')
 max_total_size = 10 * 1024 * 1024
 
@@ -41,7 +41,7 @@ class SesAttachment:
 
 
 @dataclass
-class Recipient:
+class SesRecipient:
     email: str
     first_name: Optional[str] = None
     last_name: Optional[str] = None
@@ -65,14 +65,14 @@ class SesClient:
 
     async def send_email(
         self,
-        e_from: Union[str, Recipient],
+        e_from: Union[str, SesRecipient],
         subject: str,
-        to: Optional[List[Union[str, Recipient]]] = None,
+        to: Optional[List[Union[str, SesRecipient]]] = None,
         text_body: Optional[str] = None,
         html_body: Optional[str] = None,
         *,
-        cc: Optional[List[Union[str, Recipient]]] = None,
-        bcc: Optional[List[Union[str, Recipient]]] = None,
+        cc: Optional[List[Union[str, SesRecipient]]] = None,
+        bcc: Optional[List[Union[str, SesRecipient]]] = None,
         attachments: Optional[List[SesAttachment]] = None,
         unsubscribe_link: Optional[str] = None,
         configuration_set: Optional[str] = None,
@@ -88,9 +88,9 @@ class SesClient:
         e_from_recipient = as_recipient(e_from)
         email_msg['From'] = e_from_recipient.display()
 
-        to_r: List[Recipient] = []
-        cc_r: List[Recipient] = []
-        bcc_r: List[Recipient] = []
+        to_r: List[SesRecipient] = []
+        cc_r: List[SesRecipient] = []
+        bcc_r: List[SesRecipient] = []
         if to:
             to_r = [as_recipient(r) for r in to]
             email_msg['To'] = ', '.join(r.display() for r in to_r)
@@ -129,7 +129,13 @@ class SesClient:
         return await self.send_raw_email(e_from_recipient.email, email_msg, to=to_r, cc=cc_r, bcc=bcc_r)
 
     async def send_raw_email(
-        self, e_from: str, email_msg: EmailMessage, *, to: List[Recipient], cc: List[Recipient], bcc: List[Recipient],
+        self,
+        e_from: str,
+        email_msg: EmailMessage,
+        *,
+        to: List[SesRecipient],
+        cc: List[SesRecipient],
+        bcc: List[SesRecipient],
     ) -> str:
         if not any((to, cc, bcc)):
             raise TypeError('either "to", "cc", or "bcc" must be provided when sending emails')
@@ -155,11 +161,11 @@ class SesClient:
         return re.search('<MessageId>(.+?)</MessageId>', r.text).group(1)  # type: ignore
 
 
-def as_recipient(r: Union[str, Recipient]) -> Recipient:
-    if isinstance(r, Recipient):
+def as_recipient(r: Union[str, SesRecipient]) -> SesRecipient:
+    if isinstance(r, SesRecipient):
         return r
     else:
-        return Recipient(r)
+        return SesRecipient(r)
 
 
 async def prepare_attachment(a: SesAttachment) -> Tuple[MIMEBase, int]:

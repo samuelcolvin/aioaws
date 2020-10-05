@@ -1,36 +1,19 @@
-import base64
-from email import message_from_bytes
-
 import pytest
 from foxglove.test_server import DummyServer
 from httpx import AsyncClient
 
-from aioaws.ses import SesAttachment, SesClient, SesConfig
+from aioaws.ses import Recipient, SesAttachment, SesClient, SesConfig
 
 pytestmark = pytest.mark.asyncio
 
 
-def email_dict(raw: bytes):
-    msg = message_from_bytes(base64.b64decode(raw))
-    d = dict(msg)
-    d.pop('Content-Type', None)
-    d['payload'] = []
-    for part in msg.walk():
-        if payload := part.get_payload(decode=True):
-            part_info = {'Content-Type': part.get_content_type(), 'payload': payload.decode().replace('\r\n', '\n')}
-            if cd := part['Content-Disposition']:
-                part_info['Content-Disposition'] = cd
-            d['payload'].append(part_info)
-    return d
-
-
-async def test_send_email(client: AsyncClient, aws: DummyServer):
+async def test_send(client: AsyncClient, aws: DummyServer):
     ses = SesClient(client, SesConfig('test_access_key', 'test_secret_key', 'testing-region-1'))
 
     message_id = await ses.send_email(
         'testing@sender.com',
         'test email',
-        {'testing@recipient.com'},
+        ['testing@recipient.com'],
         'this is a test email',
         html_body='This is a <b>test</b> email.',
     )
@@ -38,12 +21,10 @@ async def test_send_email(client: AsyncClient, aws: DummyServer):
 
     assert len(aws.app['emails']) == 1
     eml = aws.app['emails'][0]
-    assert eml['Action'] == 'SendRawEmail'
-    assert eml['Source'] == 'testing@sender.com'
-    assert eml['Destination.ToAddresses.member.1'] == 'testing@recipient.com'
-
-    msg = email_dict(eml['RawMessage.Data'])
-    assert msg == {
+    assert eml['body']['Action'] == 'SendRawEmail'
+    assert eml['body']['Source'] == 'testing@sender.com'
+    assert eml['body']['Destination.ToAddresses.member.1'] == 'testing@recipient.com'
+    assert eml['email'] == {
         'Subject': 'test email',
         'From': 'testing@sender.com',
         'MIME-Version': '1.0',
@@ -61,14 +42,13 @@ async def test_send_email_attachment(client: AsyncClient, aws: DummyServer):
     await ses.send_email(
         'testing@sender.com',
         'test with attachment',
-        {'testing@recipient.com'},
+        ['testing@recipient.com'],
         'this is a test email',
         attachments=[SesAttachment(file=b'some binary data', name='testing.txt', mime_type='text/plain')],
     )
     assert len(aws.app['emails']) == 1
     eml = aws.app['emails'][0]
-    msg = email_dict(eml['RawMessage.Data'])
-    assert msg == {
+    assert eml['email'] == {
         'Subject': 'test with attachment',
         'From': 'testing@sender.com',
         'MIME-Version': '1.0',
@@ -81,4 +61,34 @@ async def test_send_email_attachment(client: AsyncClient, aws: DummyServer):
                 'Content-Disposition': 'attachment; filename="testing.txt"',
             },
         ],
+    }
+
+
+async def test_send_names(client: AsyncClient, aws: DummyServer):
+    ses = SesClient(client, SesConfig('test_access_key', 'test_secret_key', 'testing-region-1'))
+
+    await ses.send_email(
+        'testing@sender.com',
+        'test email',
+        [Recipient('testing@example.com', 'John', 'Doe')],
+        'this is a test email',
+        cc=[
+            Recipient('cc1@example.com'),
+            Recipient('cc2@example.com', 'CC2'),
+            Recipient('cc3@example.com', None, 'CC3'),
+            Recipient('cc4@example.com', 'Anna, Bob', 'CC4'),
+        ],
+        bcc=['bcc@exmaple.com'],
+    )
+    assert len(aws.app['emails']) == 1
+    eml = aws.app['emails'][0]
+    assert eml['email'] == {
+        'Subject': 'test email',
+        'From': 'testing@sender.com',
+        'Content-Transfer-Encoding': '7bit',
+        'MIME-Version': '1.0',
+        'To': 'John Doe <testing@example.com>',
+        'Cc': 'cc1@example.com, CC2 <cc2@example.com>, CC3 <cc3@example.com>,\n "Anna, Bob CC4" <cc4@example.com>',
+        'Bcc': 'bcc@exmaple.com',
+        'payload': [{'Content-Type': 'text/plain', 'payload': 'this is a test email\n'}],
     }

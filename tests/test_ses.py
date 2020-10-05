@@ -1,9 +1,12 @@
+import base64
+import json
+
 import pytest
 from foxglove.test_server import DummyServer
 from httpx import AsyncClient
 from pytest_toolbox.comparison import RegexStr
 
-from aioaws.ses import Recipient, SesAttachment, SesClient, SesConfig
+from aioaws.ses import Recipient, SesAttachment, SesClient, SesConfig, SesWebhookAuthError, SesWebhookInfo
 
 pytestmark = pytest.mark.asyncio
 
@@ -134,3 +137,46 @@ async def test_custom_headers(client: AsyncClient, aws: DummyServer):
         'MIME-Version': '1.0',
         'payload': [{'Content-Type': 'text/plain', 'payload': 'this is a test email\n'}],
     }
+
+
+async def test_webhook_open(client: AsyncClient):
+    message = {'eventType': 'Open', 'mail': {'messageId': 'testing-123'}, 'open': {'ipAddress': '1.2.3.4'}}
+    d = {'Type': 'Notification', 'Message': json.dumps(message)}
+    info = await SesWebhookInfo.build('Basic ZEdWemRHbHVadz09', json.dumps(d), base64.b64encode(b'testing'), client)
+    assert info.message_id == 'testing-123'
+    assert info.event_type == 'open'
+    assert info.unsubscribe is False
+    assert info.extra == {'ip_address': '1.2.3.4'}
+
+
+async def test_webhook_bounce(client: AsyncClient):
+    message = {'eventType': 'Bounce', 'mail': {'messageId': 'testing-123'}, 'bounce': {'bounceType': 'other'}}
+    d = {'Type': 'Notification', 'Message': json.dumps(message)}
+    info = await SesWebhookInfo.build('Basic ZEdWemRHbHVadz09', json.dumps(d), base64.b64encode(b'testing'), client)
+    assert info.message_id == 'testing-123'
+    assert info.event_type == 'bounce'
+    assert info.unsubscribe is False
+    assert info.extra == {'bounce_type': 'other'}
+
+
+async def test_webhook_complaint(client: AsyncClient):
+    message = {'eventType': 'Complaint', 'mail': {'messageId': 'testing-123'}}
+    d = {'Type': 'Notification', 'Message': json.dumps(message)}
+    info = await SesWebhookInfo.build('Basic ZEdWemRHbHVadz09', json.dumps(d), base64.b64encode(b'testing'), client)
+    assert info.message_id == 'testing-123'
+    assert info.event_type == 'complaint'
+    assert info.unsubscribe is True
+    assert info.extra == {}
+
+
+async def test_webhook_bad_auth(client: AsyncClient):
+    d = {'Type': 'Notification', 'Message': '{}'}
+    with pytest.raises(SesWebhookAuthError, match='Invalid basic auth'):
+        await SesWebhookInfo.build('Basic foobar', json.dumps(d), base64.b64encode(b'testing'), client)
+
+
+async def test_webhook_subscribe(client: AsyncClient, aws: DummyServer):
+    d = {'Type': 'SubscriptionConfirmation', 'SubscribeURL': f'{aws.server_name}/status/200/'}
+    info = await SesWebhookInfo.build('Basic ZEdWemRHbHVadz09', json.dumps(d), base64.b64encode(b'testing'), client)
+    assert info is None
+    assert aws.log == ['GET /status/200/ > 200']

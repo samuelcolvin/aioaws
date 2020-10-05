@@ -33,6 +33,8 @@ class CustomAsyncClient(AsyncClient):
         self.port = int(port)
 
     def _merge_url(self, url):
+        if isinstance(url, str) and url.startswith('http://localhost'):
+            return url
         new_url = url.copy_with(scheme=self.scheme, host=self.host, port=self.port)
         if 's3.' in url.host:
             new_url = new_url.copy_with(path='/s3/')

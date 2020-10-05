@@ -121,7 +121,7 @@ class AwsClient:
         ctx = dict(
             method=method,
             path=url.path,
-            query=url.query,
+            query=url.query.decode(),
             access_key=self.aws_access_key,
             algorithm=_AUTH_ALGORITHM,
             x_amz_date=x_amz_date,

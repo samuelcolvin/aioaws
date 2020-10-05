@@ -19,7 +19,7 @@ def _fix_loop():
 
 @pytest.fixture(name='aws')
 def _fix_aws(loop):
-    ctx = {'s3_files': {}}
+    ctx = {'s3_files': {}, 'emails': []}
     ds = loop.run_until_complete(create_dummy_server(loop, extra_routes=dummy_server.routes, extra_context=ctx))
     yield ds
     loop.run_until_complete(ds.stop())
@@ -36,6 +36,8 @@ class CustomAsyncClient(AsyncClient):
         new_url = url.copy_with(scheme=self.scheme, host=self.host, port=self.port)
         if 's3.' in url.host:
             new_url = new_url.copy_with(path='/s3/')
+        elif 'email.' in url.host:
+            new_url = new_url.copy_with(path='/ses/')
         return new_url
 
 

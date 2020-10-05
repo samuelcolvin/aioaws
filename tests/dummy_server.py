@@ -49,7 +49,27 @@ async def s3_demo_image(request):
     return Response(body=stream.getvalue())
 
 
+ses_send_response = (
+    '<SendRawEmailResponse xmlns="http://ses.amazonaws.com/doc/2010-12-01/">\n'
+    '  <SendRawEmailResult>\n'
+    '    <MessageId>{message_id}</MessageId>\n'
+    '  </SendRawEmailResult>\n'
+    '  <ResponseMetadata>\n'
+    '    <RequestId>{request_id}</RequestId>\n'
+    '  </ResponseMetadata>\n'
+    '</SendRawEmailResponse>\n'
+)
+
+
+async def ses_send(request):
+    data = await request.post()
+    request.app['emails'].append(data)
+    response_body = ses_send_response.format(message_id='123-message-id', request_id='123-request-id')
+    return Response(body=response_body, content_type='text/xml')
+
+
 routes = [
     web.get('/s3/', s3_root),
     web.get('/s3_demo_image_url/{image:.*}', s3_demo_image),
+    web.post('/ses/', ses_send),
 ]

@@ -66,6 +66,8 @@ class SesClient:
         email_msg.set_content(text_body)
         if html_body:
             email_msg.add_alternative(html_body, subtype='html')
+        # else:
+        #     email_msg.make_alternative()
 
         total_size = 0
         for attachment in attachments or []:
@@ -73,6 +75,8 @@ class SesClient:
             total_size += size
             if total_size > max_total_size:
                 raise ValueError(f'attachment size {total_size} greater than 10MB')
+            if email_msg.get_content_maintype() == 'text':
+                email_msg.make_mixed()
             email_msg.attach(attachment_msg)
 
         if to:
@@ -117,7 +121,7 @@ class SesClient:
             add_addresses('BccAddresses', bcc)
 
         data = urlencode(form_data).encode()
-        r = await self._aws_client.post('', data=data)
+        r = await self._aws_client.post('/', data=data)
         return re.search('<MessageId>(.+?)</MessageId>', r.text).group(1)  # type: ignore
 
 

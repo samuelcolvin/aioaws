@@ -217,25 +217,26 @@ class SesWebhookInfo:
             return None
 
         event_type = message['eventType'].lower()
-        message_id = message['mail']['messageId']
-        logger.info('%s for message %s', event_type, message_id)
-
-        details = message.get(event_type) or {}
-        tags = message['mail'].get('tags') or {}
-        unsubscribe = False
-        timestamp = details.get('timestamp')
-        if event_type == 'open':
-            timestamp = message['mail'].get('timestamp')
-        elif event_type == 'bounce':
-            unsubscribe = details.get('bounceType') == 'Permanent'
-        elif event_type == 'complaint':
-            unsubscribe = True
 
         if event_type not in {'send', 'delivery', 'open', 'click', 'bounce', 'complaint'}:
             logger.warning(
                 'unknown aws webhook event %s', event_type, extra={'data': {'request': payload.request_data}}
             )
 
+        message_id = message['mail']['messageId']
+        logger.info('%s for message %s', event_type, message_id)
+
+        details = message.get(event_type) or {}
+        mail = message.get('mail') or {}
+        tags = mail.get('tags') or {}
+        timestamp = details.get('timestamp') or mail.get('timestamp')
+
+        if event_type == 'bounce':
+            unsubscribe = details.get('bounceType') == 'Permanent'
+        elif event_type == 'complaint':
+            unsubscribe = True
+        else:
+            unsubscribe = False
         return cls(
             message_id=message_id,
             event_type=event_type,

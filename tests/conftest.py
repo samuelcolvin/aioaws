@@ -45,10 +45,13 @@ class CustomAsyncClient(AsyncClient):
             return new_url.copy_with(path='/s3/')
         elif 'email.' in url.host:
             return new_url.copy_with(path='/ses/')
-        elif url.host.startswith('sns.') and url.path.endswith('.pem'):
-            return new_url.copy_with(path='/sns/certs/')
         elif url.host.startswith('sns.'):
-            return new_url.copy_with(path='/status/200/')
+            if 'bad' in url.path:
+                return new_url.copy_with(path='/status/400/')
+            elif url.path.endswith('.pem'):
+                return new_url.copy_with(path='/sns/certs/')
+            else:
+                return new_url.copy_with(path='/status/200/')
         else:
             # return url
             raise ValueError(f'no local endpoint found for "{url}"')

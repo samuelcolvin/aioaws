@@ -93,7 +93,7 @@ async def get_resources(url: HttpUrl, http_client: AsyncClient) -> bytes:
 
     if r.status_code != 200:
         logger.warning(
-            'unexpected response from %s "%s", $d',
+            'unexpected response from %s "%s", %d',
             r.request.method,
             r.request.url,
             r.status_code,

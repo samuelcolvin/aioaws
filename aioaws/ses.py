@@ -205,10 +205,6 @@ class SesWebhookInfo:
             # happens legitimately for subscription confirmation webhooks
             return None
 
-        if payload.type != 'Notification':
-            logger.warning('unexpected SNS type %s', payload.type, extra={'data': {'request': payload.request_data}})
-            return None
-
         raw_message = payload.message
         try:
             message = json.loads(raw_message)

@@ -64,12 +64,14 @@ async def _fix_client(loop, aws: DummyServer):
 def _fix_build_sns_webhook(mocker):
     mocker.patch('aioaws.sns.x509.load_pem_x509_certificate')
 
-    def build(message):
+    def build(message, *, event_type='Notification', sig_url='https://sns.eu-west-2.amazonaws.com/sns-123.pem'):
+        if not isinstance(message, str):
+            message = json.dumps(message)
         d = {
-            'Type': 'Notification',
-            'SigningCertURL': 'https://sns.eu-west-2.amazonaws.com/SimpleNotificationService-123.pem',
+            'Type': event_type,
+            'SigningCertURL': sig_url,
             'Signature': base64.b64encode(b'testing').decode(),
-            'Message': json.dumps(message),
+            'Message': message,
         }
         return json.dumps(d)
 

@@ -238,6 +238,21 @@ async def test_webhook_bad_auth(client: AsyncClient):
         await SesWebhookInfo.build(json.dumps(d), client)
 
 
+async def test_webhook_no_json(client: AsyncClient, build_sns_webhook):
+    info = await SesWebhookInfo.build(build_sns_webhook('foobar'), client)
+    assert info is None
+
+
+async def test_webhook_bad_signing_url(client: AsyncClient, build_sns_webhook):
+    with pytest.raises(SnsWebhookError, match='invalid SigningCertURL "http://www.example.com/testing"'):
+        await SesWebhookInfo.build(build_sns_webhook({}, sig_url='http://www.example.com/testing'), client)
+
+
+async def test_webhook_bad_type(client: AsyncClient, build_sns_webhook):
+    with pytest.raises(SnsWebhookError, match='Unknown SNS type "foobar"'):
+        await SesWebhookInfo.build(build_sns_webhook({}, event_type='foobar'), client)
+
+
 async def test_webhook_subscribe(client: AsyncClient, aws: DummyServer, mocker):
     mocker.patch('aioaws.sns.x509.load_pem_x509_certificate')
     d = {

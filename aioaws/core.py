@@ -13,7 +13,7 @@ from ._utils import get_config_attr, utcnow
 if TYPE_CHECKING:
     from ._types import BaseConfigProtocol
 
-__all__ = ('AwsClient',)
+__all__ = 'AwsClient', 'RequestError'
 logger = logging.getLogger('aioaws.core')
 
 _AWS_AUTH_REQUEST = 'aws4_request'

@@ -248,9 +248,14 @@ async def test_webhook_bad_signing_url(client: AsyncClient, build_sns_webhook):
         await SesWebhookInfo.build(build_sns_webhook({}, sig_url='http://www.example.com/testing'), client)
 
 
-async def test_webhook_bad_type(client: AsyncClient, build_sns_webhook):
-    with pytest.raises(SnsWebhookError, match='Unknown SNS type "foobar"'):
+async def test_webhook_invalid_payload(client: AsyncClient, build_sns_webhook):
+    with pytest.raises(SnsWebhookError, match='invalid payload'):
         await SesWebhookInfo.build(build_sns_webhook({}, event_type='foobar'), client)
+
+
+async def test_webhook_invalid_signature_base64(client: AsyncClient, build_sns_webhook):
+    with pytest.raises(SnsWebhookError, match='invalid payload'):
+        await SesWebhookInfo.build(build_sns_webhook({}, signature='testing'), client)
 
 
 async def test_webhook_subscribe(client: AsyncClient, aws: DummyServer, mocker):

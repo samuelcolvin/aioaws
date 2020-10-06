@@ -2,14 +2,14 @@ import base64
 import json
 import logging
 import re
-from typing import Any, Dict, Optional, Tuple, Union
+from typing import Any, Dict, Literal, Optional, Tuple, Union
 
 from cryptography import x509
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import padding
 from httpx import AsyncClient
-from pydantic import BaseModel, Field, HttpUrl, ValidationError
+from pydantic import BaseModel, Field, HttpUrl, ValidationError, validator
 
 __all__ = 'SnsWebhookError', 'SnsPayload', 'verify_webhook'
 logger = logging.getLogger('aioaws.sns')
@@ -24,12 +24,16 @@ class SnsWebhookError(ValueError):
 
 
 class SnsPayload(BaseModel):
-    type: str = Field(..., alias='Type')
+    type: Literal['Notification', 'SubscriptionConfirmation', 'UnsubscribeConfirmation'] = Field(..., alias='Type')
     signing_cert_url: HttpUrl = Field(..., alias='SigningCertURL')
-    signature: str = Field(..., alias='Signature')
+    signature: bytes = Field(..., alias='Signature')
     subscribe_url: HttpUrl = Field(None, alias='SubscribeURL')
     message: str = Field(str, alias='Message')
     request_data: Dict[str, Any]
+
+    @validator('signature', pre=True)
+    def base64_signature(cls, sig: str) -> bytes:
+        return base64.b64decode(sig)
 
 
 async def verify_webhook(request_body: Union[str, bytes], http_client: AsyncClient) -> Optional[SnsPayload]:
@@ -62,14 +66,10 @@ async def verify_signature(payload: SnsPayload, http_client: AsyncClient) -> Non
     certs_content = await get_resources(url, http_client)
 
     cert = x509.load_pem_x509_certificate(certs_content)  # type: ignore
-    try:
-        signature = base64.b64decode(payload.signature)
-    except ValueError as e:
-        raise SnsWebhookError('invalid signature, invalid base64 encoding') from e
 
     message = get_message(payload)
     try:
-        cert.public_key().verify(signature, message, padding.PKCS1v15(), hashes.SHA1())  # type: ignore
+        cert.public_key().verify(payload.signature, message, padding.PKCS1v15(), hashes.SHA1())  # type: ignore
     except InvalidSignature as e:
         raise SnsWebhookError('invalid signature') from e
 
@@ -78,10 +78,8 @@ def get_message(payload: SnsPayload) -> bytes:
     keys: Tuple[str, ...]
     if payload.type == 'Notification':
         keys = 'Message', 'MessageId', 'Subject', 'Timestamp', 'TopicArn', 'Type'
-    elif payload.type in {'SubscriptionConfirmation', 'UnsubscribeConfirmation'}:
-        keys = 'Message', 'MessageId', 'SubscribeURL', 'Timestamp', 'Token', 'TopicArn', 'Type'
     else:
-        raise SnsWebhookError(f'Unknown SNS type "{payload.type}"')
+        keys = 'Message', 'MessageId', 'SubscribeURL', 'Timestamp', 'Token', 'TopicArn', 'Type'
 
     parts = []
     for key in keys:

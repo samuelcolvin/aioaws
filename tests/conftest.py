@@ -60,17 +60,26 @@ async def _fix_client(loop, aws: DummyServer):
         yield client
 
 
+default_signature = base64.b64encode(b'testing').decode()
+
+
 @pytest.fixture(name='build_sns_webhook')
 def _fix_build_sns_webhook(mocker):
     mocker.patch('aioaws.sns.x509.load_pem_x509_certificate')
 
-    def build(message, *, event_type='Notification', sig_url='https://sns.eu-west-2.amazonaws.com/sns-123.pem'):
+    def build(
+        message,
+        *,
+        event_type='Notification',
+        signature=default_signature,
+        sig_url='https://sns.eu-west-2.amazonaws.com/sns-123.pem',
+    ):
         if not isinstance(message, str):
             message = json.dumps(message)
         d = {
             'Type': event_type,
             'SigningCertURL': sig_url,
-            'Signature': base64.b64encode(b'testing').decode(),
+            'Signature': signature,
             'Message': message,
         }
         return json.dumps(d)

@@ -198,7 +198,8 @@ class SesWebhookInfo:
     event_type: Literal['send', 'delivery', 'open', 'click', 'bounce', 'complaint']
     timestamp: Optional[datetime]
     unsubscribe: bool
-    message: Dict[str, Any]
+    details: Dict[str, Any]
+    tags: Dict[str, str]
     request_data: Dict[str, Any]
 
     @classmethod
@@ -219,13 +220,14 @@ class SesWebhookInfo:
         message_id = message['mail']['messageId']
         logger.info('%s for message %s', event_type, message_id)
 
-        data = message.get(event_type) or {}
+        details = message.get(event_type) or {}
+        tags = message['mail'].get('tags') or {}
         unsubscribe = False
-        timestamp = data.get('timestamp')
+        timestamp = details.get('timestamp')
         if event_type == 'open':
             timestamp = message['mail'].get('timestamp')
         elif event_type == 'bounce':
-            unsubscribe = data.get('bounceType') == 'Permanent'
+            unsubscribe = details.get('bounceType') == 'Permanent'
         elif event_type == 'complaint':
             unsubscribe = True
 
@@ -239,6 +241,7 @@ class SesWebhookInfo:
             event_type=event_type,
             timestamp=timestamp and parse_datetime(timestamp),
             unsubscribe=unsubscribe,
-            message=message,
+            tags={k: v[0] for k, v in tags.items()},
+            details=details,
             request_data=payload.request_data,
         )

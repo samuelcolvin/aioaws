@@ -205,20 +205,21 @@ async def test_webhook_open(client: AsyncClient, build_sns_webhook):
     assert info.event_type == 'open'
     assert info.timestamp is None
     assert info.unsubscribe is False
-    assert info.message == {
-        'eventType': 'Open',
-        'mail': {'messageId': 'testing-123'},
-        'open': {'ipAddress': '1.2.3.4'},
-    }
+    assert info.details == {'ipAddress': '1.2.3.4'}
 
 
 async def test_webhook_bounce(client: AsyncClient, build_sns_webhook):
-    message = {'eventType': 'Bounce', 'mail': {'messageId': 'testing-123'}, 'bounce': {'bounceType': 'other'}}
+    message = {
+        'eventType': 'Bounce',
+        'mail': {'messageId': 'testing-123', 'tags': {'ses:operation': ['SendRawEmail']}},
+        'bounce': {'bounceType': 'other'},
+    }
     info = await SesWebhookInfo.build(build_sns_webhook(message).encode(), client)
     assert info.message_id == 'testing-123'
     assert info.event_type == 'bounce'
     assert info.unsubscribe is False
-    assert info.message == message
+    assert info.details == {'bounceType': 'other'}
+    assert info.tags == {'ses:operation': 'SendRawEmail'}
 
 
 async def test_webhook_complaint(client: AsyncClient, build_sns_webhook):

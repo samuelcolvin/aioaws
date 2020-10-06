@@ -4,6 +4,7 @@ import logging
 import mimetypes
 import re
 from dataclasses import dataclass
+from datetime import datetime
 from email.encoders import encode_base64
 from email.message import EmailMessage
 from email.mime.base import MIMEBase
@@ -14,6 +15,7 @@ from urllib.parse import urlencode
 
 import aiofiles
 from httpx import AsyncClient
+from pydantic.datetime_parse import parse_datetime
 
 from . import sns
 from .core import AwsClient
@@ -193,7 +195,8 @@ async def prepare_attachment(a: SesAttachment) -> Tuple[MIMEBase, int]:
 @dataclass
 class SesWebhookInfo:
     message_id: str
-    event_type: Literal['send', 'open', 'click', 'bounce', 'complaint']
+    event_type: Literal['send', 'delivery', 'open', 'click', 'bounce', 'complaint']
+    timestamp: Optional[datetime]
     unsubscribe: bool
     message: Dict[str, Any]
     request_data: Dict[str, Any]
@@ -205,9 +208,8 @@ class SesWebhookInfo:
             # happens legitimately for subscription confirmation webhooks
             return None
 
-        raw_message = payload.message
         try:
-            message = json.loads(raw_message)
+            message = json.loads(payload.message)
         except ValueError:
             # this can happen legitimately, e.g. when a new configuration set is setup
             logger.warning('invalid JSON in SNS notification', extra={'data': {'request': payload.request_data}})
@@ -219,7 +221,10 @@ class SesWebhookInfo:
 
         data = message.get(event_type) or {}
         unsubscribe = False
-        if event_type == 'bounce':
+        timestamp = data.get('timestamp')
+        if event_type == 'open':
+            timestamp = message['mail'].get('timestamp')
+        elif event_type == 'bounce':
             unsubscribe = data.get('bounceType') == 'Permanent'
         elif event_type == 'complaint':
             unsubscribe = True
@@ -232,6 +237,7 @@ class SesWebhookInfo:
         return cls(
             message_id=message_id,
             event_type=event_type,
+            timestamp=timestamp and parse_datetime(timestamp),
             unsubscribe=unsubscribe,
             message=message,
             request_data=payload.request_data,

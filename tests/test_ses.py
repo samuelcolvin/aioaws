@@ -1,6 +1,7 @@
 import base64
 import json
 import os
+from datetime import datetime
 
 import pytest
 from foxglove.test_server import DummyServer
@@ -202,6 +203,7 @@ async def test_webhook_open(client: AsyncClient, build_sns_webhook):
     info = await SesWebhookInfo.build(build_sns_webhook(message), client)
     assert info.message_id == 'testing-123'
     assert info.event_type == 'open'
+    assert info.timestamp is None
     assert info.unsubscribe is False
     assert info.message == {
         'eventType': 'Open',
@@ -225,6 +227,12 @@ async def test_webhook_complaint(client: AsyncClient, build_sns_webhook):
     assert info.message_id == 'testing-123'
     assert info.event_type == 'complaint'
     assert info.unsubscribe is True
+
+
+async def test_webhook_ts(client: AsyncClient, build_sns_webhook):
+    message = {'eventType': 'Open', 'mail': {'messageId': 'testing-123', 'timestamp': '2020-06-05T12:30:20'}}
+    info = await SesWebhookInfo.build(build_sns_webhook(message), client)
+    assert info.timestamp == datetime(2020, 6, 5, 12, 30, 20)
 
 
 async def test_webhook_bad_auth(client: AsyncClient):

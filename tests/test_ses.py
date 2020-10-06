@@ -8,7 +8,8 @@ from foxglove.test_server import DummyServer
 from httpx import AsyncClient
 from pytest_toolbox.comparison import RegexStr
 
-from aioaws.ses import SesAttachment, SesClient, SesConfig, SesRecipient, SesWebhookAuthError, SesWebhookInfo
+from aioaws.ses import SesAttachment, SesClient, SesConfig, SesRecipient, SesWebhookInfo
+from aioaws.sns import SnsWebhookError
 
 pytestmark = pytest.mark.asyncio
 
@@ -197,55 +198,85 @@ async def test_no_recipients(client: AsyncClient, aws: DummyServer):
     assert aws.log == []
 
 
-async def test_webhook_open(client: AsyncClient):
+async def test_webhook_open(client: AsyncClient, build_sns_webhook):
     message = {'eventType': 'Open', 'mail': {'messageId': 'testing-123'}, 'open': {'ipAddress': '1.2.3.4'}}
-    d = {'Type': 'Notification', 'Message': json.dumps(message)}
-    info = await SesWebhookInfo.build('Basic ZEdWemRHbHVadz09', json.dumps(d), base64.b64encode(b'testing'), client)
+    info = await SesWebhookInfo.build(build_sns_webhook(message), client)
     assert info.message_id == 'testing-123'
     assert info.event_type == 'open'
     assert info.timestamp is None
     assert info.unsubscribe is False
-    assert info.details == {'ipAddress': '1.2.3.4'}
+    assert info.message == {
+        'eventType': 'Open',
+        'mail': {'messageId': 'testing-123'},
+        'open': {'ipAddress': '1.2.3.4'},
+    }
 
 
-async def test_webhook_bounce(client: AsyncClient):
+async def test_webhook_bounce(client: AsyncClient, build_sns_webhook):
     message = {'eventType': 'Bounce', 'mail': {'messageId': 'testing-123'}, 'bounce': {'bounceType': 'other'}}
-    d = {'Type': 'Notification', 'Message': json.dumps(message)}
-    info = await SesWebhookInfo.build('Basic ZEdWemRHbHVadz09', json.dumps(d), base64.b64encode(b'testing'), client)
+    info = await SesWebhookInfo.build(build_sns_webhook(message).encode(), client)
     assert info.message_id == 'testing-123'
     assert info.event_type == 'bounce'
     assert info.unsubscribe is False
-    assert info.details == {'bounceType': 'other'}
+    assert info.message == message
 
 
-async def test_webhook_complaint(client: AsyncClient):
+async def test_webhook_complaint(client: AsyncClient, build_sns_webhook):
     message = {'eventType': 'Complaint', 'mail': {'messageId': 'testing-123'}}
-    d = {'Type': 'Notification', 'Message': json.dumps(message)}
-    info = await SesWebhookInfo.build('Basic ZEdWemRHbHVadz09', json.dumps(d), base64.b64encode(b'testing'), client)
+    info = await SesWebhookInfo.build(build_sns_webhook(message), client)
     assert info.message_id == 'testing-123'
     assert info.event_type == 'complaint'
     assert info.unsubscribe is True
-    assert info.details == {}
 
 
-async def test_webhook_ts(client: AsyncClient):
+async def test_webhook_ts(client: AsyncClient, build_sns_webhook):
     message = {'eventType': 'Open', 'mail': {'messageId': 'testing-123', 'timestamp': '2020-06-05T12:30:20'}}
-    d = {'Type': 'Notification', 'Message': json.dumps(message)}
-    info = await SesWebhookInfo.build('Basic ZEdWemRHbHVadz09', json.dumps(d), base64.b64encode(b'testing'), client)
+    info = await SesWebhookInfo.build(build_sns_webhook(message), client)
     assert info.timestamp == datetime(2020, 6, 5, 12, 30, 20)
 
 
 async def test_webhook_bad_auth(client: AsyncClient):
-    d = {'Type': 'Notification', 'Message': '{}'}
-    with pytest.raises(SesWebhookAuthError, match='Invalid basic auth'):
-        await SesWebhookInfo.build('Basic foobar', json.dumps(d), base64.b64encode(b'testing'), client)
+    d = {
+        'Type': 'Notification',
+        'SigningCertURL': 'https://sns.eu-west-2.amazonaws.com/SimpleNotificationService-123.pem',
+        'Signature': base64.b64encode(b'testing').decode(),
+        'Message': '{}',
+    }
+    with pytest.raises(SnsWebhookError, match='invalid signature'):
+        await SesWebhookInfo.build(json.dumps(d), client)
 
 
-async def test_webhook_subscribe(client: AsyncClient, aws: DummyServer):
-    d = {'Type': 'SubscriptionConfirmation', 'SubscribeURL': f'{aws.server_name}/status/200/'}
-    info = await SesWebhookInfo.build('Basic ZEdWemRHbHVadz09', json.dumps(d), base64.b64encode(b'testing'), client)
+async def test_webhook_no_json(client: AsyncClient, build_sns_webhook):
+    info = await SesWebhookInfo.build(build_sns_webhook('foobar'), client)
     assert info is None
-    assert aws.log == ['GET /status/200/ > 200']
+
+
+async def test_webhook_bad_signing_url(client: AsyncClient, build_sns_webhook):
+    with pytest.raises(SnsWebhookError, match='invalid SigningCertURL "http://www.example.com/testing"'):
+        await SesWebhookInfo.build(build_sns_webhook({}, sig_url='http://www.example.com/testing'), client)
+
+
+async def test_webhook_invalid_payload(client: AsyncClient, build_sns_webhook):
+    with pytest.raises(SnsWebhookError, match='invalid payload'):
+        await SesWebhookInfo.build(build_sns_webhook({}, event_type='foobar'), client)
+
+
+async def test_webhook_invalid_signature_base64(client: AsyncClient, build_sns_webhook):
+    with pytest.raises(SnsWebhookError, match='invalid payload'):
+        await SesWebhookInfo.build(build_sns_webhook({}, signature='testing'), client)
+
+
+async def test_webhook_subscribe(client: AsyncClient, aws: DummyServer, mocker):
+    mocker.patch('aioaws.sns.x509.load_pem_x509_certificate')
+    d = {
+        'Type': 'SubscriptionConfirmation',
+        'SigningCertURL': 'https://sns.eu-west-2.amazonaws.com/SimpleNotificationService-123.pem',
+        'Signature': base64.b64encode(b'testing').decode(),
+        'SubscribeURL': 'https://sns.eu-west-2.amazonaws.com/?Action=1234',
+    }
+    info = await SesWebhookInfo.build(json.dumps(d), client)
+    assert info is None
+    assert aws.log == ['GET /sns/certs/ > 200', 'GET /status/200/?Action=1234 > 200']
 
 
 real_ses_test = pytest.mark.skipif(not os.getenv('TEST_AWS_ACCESS_KEY'), reason='requires TEST_AWS_ACCESS_KEY env var')

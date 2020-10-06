@@ -10,7 +10,6 @@ from email.message import EmailMessage
 from email.mime.base import MIMEBase
 from email.utils import formataddr
 from pathlib import Path
-from secrets import compare_digest
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Literal, Optional, Tuple, Union
 from urllib.parse import urlencode
 
@@ -18,12 +17,13 @@ import aiofiles
 from httpx import AsyncClient
 from pydantic.datetime_parse import parse_datetime
 
+from . import sns
 from .core import AwsClient
 
 if TYPE_CHECKING:
     from ._types import BaseConfigProtocol
 
-__all__ = 'SesAttachment', 'SesClient', 'SesConfig', 'SesRecipient', 'SesWebhookInfo', 'SesWebhookAuthError'
+__all__ = 'SesAttachment', 'SesClient', 'SesConfig', 'SesRecipient', 'SesWebhookInfo'
 logger = logging.getLogger('aioaws.ses')
 max_total_size = 10 * 1024 * 1024
 
@@ -61,8 +61,8 @@ class SesRecipient:
 class SesClient:
     __slots__ = '_config', '_aws_client'
 
-    def __init__(self, async_client: AsyncClient, config: 'BaseConfigProtocol'):
-        self._aws_client = AwsClient(async_client, config, 'ses')
+    def __init__(self, http_client: AsyncClient, config: 'BaseConfigProtocol'):
+        self._aws_client = AwsClient(http_client, config, 'ses')
         self._config = config
 
     async def send_email(
@@ -192,71 +192,53 @@ async def prepare_attachment(a: SesAttachment) -> Tuple[MIMEBase, int]:
     return msg, len(data)
 
 
-class SesWebhookAuthError(ValueError):
-    def __init__(self, message: str, headers: Dict[str, str] = None):
-        super().__init__(message)
-        self.message = message
-        self.headers = headers or {}
-
-
 @dataclass
 class SesWebhookInfo:
     message_id: str
     event_type: Literal['send', 'delivery', 'open', 'click', 'bounce', 'complaint']
     timestamp: Optional[datetime]
     unsubscribe: bool
-    details: Dict[str, Any]
-    raw: Dict[str, Any]
+    message: Dict[str, Any]
+    request_data: Dict[str, Any]
 
     @classmethod
-    async def build(
-        cls, auth_header: Optional[str], request_text: str, aws_ses_webhook_auth: bytes, async_client: AsyncClient
-    ) -> Optional['SesWebhookInfo']:
-        expected_auth_header = f'Basic {base64.b64encode(aws_ses_webhook_auth).decode()}'
-        if not compare_digest(expected_auth_header, auth_header or ''):
-            raise SesWebhookAuthError('Invalid basic auth', headers={'WWW-Authenticate': 'Basic'})
-
-        request_data = json.loads(request_text)
-        sns_type = request_data['Type']
-        if sns_type == 'SubscriptionConfirmation':
-            logger.info('confirming aws Subscription')
-            sub_url = request_data['SubscribeURL']
-            r = await async_client.get(sub_url)
-            r.raise_for_status()
+    async def build(cls, request_body: Union[str, bytes], http_client: AsyncClient) -> Optional['SesWebhookInfo']:
+        payload = await sns.verify_webhook(request_body, http_client)
+        if not payload:
+            # happens legitimately for subscription confirmation webhooks
             return None
 
-        assert sns_type == 'Notification', sns_type
-        raw_message = request_data['Message']
         try:
-            message = json.loads(raw_message)
+            message = json.loads(payload.message)
         except ValueError:
             # this can happen legitimately, e.g. when a new configuration set is setup
-            logger.warning('invalid JSON in SNS notification', extra={'data': {'request_data': request_data}})
+            logger.warning('invalid JSON in SNS notification', extra={'data': {'request': payload.request_data}})
             return None
 
         event_type = message['eventType'].lower()
         message_id = message['mail']['messageId']
         logger.info('%s for message %s', event_type, message_id)
 
-        details = message.get(event_type) or {}
-        details = {k: v for k, v in details.items() if v is not None}
+        data = message.get(event_type) or {}
         unsubscribe = False
-        timestamp = details.get('timestamp')
+        timestamp = data.get('timestamp')
         if event_type == 'open':
             timestamp = message['mail'].get('timestamp')
         elif event_type == 'bounce':
-            unsubscribe = details.get('bounceType') == 'Permanent'
+            unsubscribe = data.get('bounceType') == 'Permanent'
         elif event_type == 'complaint':
             unsubscribe = True
 
         if event_type not in {'send', 'delivery', 'open', 'click', 'bounce', 'complaint'}:
-            logger.warning('unknown aws webhook event %s', event_type, extra={'data': {'request_data': request_data}})
+            logger.warning(
+                'unknown aws webhook event %s', event_type, extra={'data': {'request': payload.request_data}}
+            )
 
         return cls(
             message_id=message_id,
             event_type=event_type,
             timestamp=timestamp and parse_datetime(timestamp),
             unsubscribe=unsubscribe,
-            details=details,
-            raw=request_data,
+            message=message,
+            request_data=payload.request_data,
         )

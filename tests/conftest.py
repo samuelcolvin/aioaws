@@ -1,8 +1,10 @@
 import asyncio
+import base64
+import json
 
 import pytest
 from foxglove.test_server import DummyServer, create_dummy_server
-from httpx import AsyncClient
+from httpx import URL, AsyncClient
 
 from . import dummy_server
 
@@ -33,17 +35,53 @@ class CustomAsyncClient(AsyncClient):
         self.port = int(port)
 
     def _merge_url(self, url):
-        if isinstance(url, str) and url.startswith('http://localhost'):
-            return url
+        if isinstance(url, str):
+            if url.startswith('http://localhost'):
+                return url
+            url = URL(url)
+
         new_url = url.copy_with(scheme=self.scheme, host=self.host, port=self.port)
         if 's3.' in url.host:
-            new_url = new_url.copy_with(path='/s3/')
+            return new_url.copy_with(path='/s3/')
         elif 'email.' in url.host:
-            new_url = new_url.copy_with(path='/ses/')
-        return new_url
+            return new_url.copy_with(path='/ses/')
+        elif url.host.startswith('sns.') and url.path.endswith('.pem'):
+            return new_url.copy_with(path='/sns/certs/')
+        elif url.host.startswith('sns.'):
+            return new_url.copy_with(path='/status/200/')
+        else:
+            # return url
+            raise ValueError(f'no local endpoint found for "{url}"')
 
 
 @pytest.fixture(name='client')
 async def _fix_client(loop, aws: DummyServer):
     async with CustomAsyncClient(local_server=aws.server_name) as client:
         yield client
+
+
+default_signature = base64.b64encode(b'testing').decode()
+
+
+@pytest.fixture(name='build_sns_webhook')
+def _fix_build_sns_webhook(mocker):
+    mocker.patch('aioaws.sns.x509.load_pem_x509_certificate')
+
+    def build(
+        message,
+        *,
+        event_type='Notification',
+        signature=default_signature,
+        sig_url='https://sns.eu-west-2.amazonaws.com/sns-123.pem',
+    ):
+        if not isinstance(message, str):
+            message = json.dumps(message)
+        d = {
+            'Type': event_type,
+            'SigningCertURL': sig_url,
+            'Signature': signature,
+            'Message': message,
+        }
+        return json.dumps(d)
+
+    return build

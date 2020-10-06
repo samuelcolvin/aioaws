@@ -58,8 +58,8 @@ class S3File(BaseModel):
 class S3Client:
     __slots__ = '_config', '_aws_client'
 
-    def __init__(self, async_client: AsyncClient, config: 'S3ConfigProtocol'):
-        self._aws_client = AwsClient(async_client, config, 's3')
+    def __init__(self, http_client: AsyncClient, config: 'S3ConfigProtocol'):
+        self._aws_client = AwsClient(http_client, config, 's3')
         self._config = config
 
     async def list(self, prefix: Optional[str] = None) -> AsyncIterable[S3File]:

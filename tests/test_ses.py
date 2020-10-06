@@ -205,7 +205,7 @@ async def test_webhook_open(client: AsyncClient):
     assert info.event_type == 'open'
     assert info.timestamp is None
     assert info.unsubscribe is False
-    assert info.extra == {'ip_address': '1.2.3.4'}
+    assert info.details == {'ipAddress': '1.2.3.4'}
 
 
 async def test_webhook_bounce(client: AsyncClient):
@@ -215,7 +215,7 @@ async def test_webhook_bounce(client: AsyncClient):
     assert info.message_id == 'testing-123'
     assert info.event_type == 'bounce'
     assert info.unsubscribe is False
-    assert info.extra == {'bounce_type': 'other'}
+    assert info.details == {'bounceType': 'other'}
 
 
 async def test_webhook_complaint(client: AsyncClient):
@@ -225,7 +225,7 @@ async def test_webhook_complaint(client: AsyncClient):
     assert info.message_id == 'testing-123'
     assert info.event_type == 'complaint'
     assert info.unsubscribe is True
-    assert info.extra == {}
+    assert info.details == {}
 
 
 async def test_webhook_ts(client: AsyncClient):

@@ -202,10 +202,10 @@ class SesWebhookAuthError(ValueError):
 @dataclass
 class SesWebhookInfo:
     message_id: str
-    event_type: Literal['send', 'open', 'click', 'bounce', 'complaint']
+    event_type: Literal['send', 'delivery', 'open', 'click', 'bounce', 'complaint']
     timestamp: Optional[datetime]
     unsubscribe: bool
-    extra: Dict[str, Any]
+    details: Dict[str, Any]
     raw: Dict[str, Any]
 
     @classmethod
@@ -227,42 +227,36 @@ class SesWebhookInfo:
 
         assert sns_type == 'Notification', sns_type
         raw_message = request_data['Message']
-        message = json.loads(raw_message)
+        try:
+            message = json.loads(raw_message)
+        except ValueError:
+            # this can happen legitimately, e.g. when a new configuration set is setup
+            logger.warning('invalid JSON in SNS notification', extra={'data': {'request_data': request_data}})
+            return None
 
         event_type = message['eventType'].lower()
         message_id = message['mail']['messageId']
         logger.info('%s for message %s', event_type, message_id)
 
-        data = message.get(event_type) or {}
-        extra = {
-            'delivery_time': data.get('processingTimeMillis'),
-            'ip_address': data.get('ipAddress'),
-            'user_agent': data.get('userAgent'),
-            'link': data.get('link'),
-            'bounce_type': data.get('bounceType'),
-            'bounce_subtype': data.get('bounceSubType'),
-            'reporting_mta': data.get('reportingMTA'),
-            'feedback_id': data.get('feedbackId'),
-            'complaint_feedback_type': data.get('complaintFeedbackType'),
-        }
-        extra = {k: v for k, v in extra.items() if v is not None}
+        details = message.get(event_type) or {}
+        details = {k: v for k, v in details.items() if v is not None}
         unsubscribe = False
-        timestamp = data.get('timestamp')
+        timestamp = details.get('timestamp')
         if event_type == 'open':
             timestamp = message['mail'].get('timestamp')
         elif event_type == 'bounce':
-            unsubscribe = data.get('bounceType') == 'Permanent'
+            unsubscribe = details.get('bounceType') == 'Permanent'
         elif event_type == 'complaint':
             unsubscribe = True
 
-        if event_type not in {'send', 'open', 'click', 'bounce', 'complaint'}:
-            logger.warning('unknown aws webhook event %s', event_type, extra={'data': {'message': message}})
+        if event_type not in {'send', 'delivery', 'open', 'click', 'bounce', 'complaint'}:
+            logger.warning('unknown aws webhook event %s', event_type, extra={'data': {'request_data': request_data}})
 
         return cls(
             message_id=message_id,
             event_type=event_type,
             timestamp=timestamp and parse_datetime(timestamp),
             unsubscribe=unsubscribe,
-            extra=extra,
-            raw=message,
+            details=details,
+            raw=request_data,
         )

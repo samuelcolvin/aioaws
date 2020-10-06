@@ -4,6 +4,7 @@ import logging
 import mimetypes
 import re
 from dataclasses import dataclass
+from datetime import datetime
 from email.encoders import encode_base64
 from email.message import EmailMessage
 from email.mime.base import MIMEBase
@@ -15,6 +16,7 @@ from urllib.parse import urlencode
 
 import aiofiles
 from httpx import AsyncClient
+from pydantic.datetime_parse import parse_datetime
 
 from .core import AwsClient
 
@@ -201,6 +203,7 @@ class SesWebhookAuthError(ValueError):
 class SesWebhookInfo:
     message_id: str
     event_type: Literal['send', 'open', 'click', 'bounce', 'complaint']
+    timestamp: Optional[datetime]
     unsubscribe: bool
     extra: Dict[str, Any]
     raw: Dict[str, Any]
@@ -244,7 +247,10 @@ class SesWebhookInfo:
         }
         extra = {k: v for k, v in extra.items() if v is not None}
         unsubscribe = False
-        if event_type == 'bounce':
+        timestamp = data.get('timestamp')
+        if event_type == 'open':
+            timestamp = message['mail'].get('timestamp')
+        elif event_type == 'bounce':
             unsubscribe = data.get('bounceType') == 'Permanent'
         elif event_type == 'complaint':
             unsubscribe = True
@@ -252,4 +258,11 @@ class SesWebhookInfo:
         if event_type not in {'send', 'open', 'click', 'bounce', 'complaint'}:
             logger.warning('unknown aws webhook event %s', event_type, extra={'data': {'message': message}})
 
-        return cls(message_id=message_id, event_type=event_type, unsubscribe=unsubscribe, extra=extra, raw=message)
+        return cls(
+            message_id=message_id,
+            event_type=event_type,
+            timestamp=timestamp and parse_datetime(timestamp),
+            unsubscribe=unsubscribe,
+            extra=extra,
+            raw=message,
+        )

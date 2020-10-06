@@ -1,6 +1,7 @@
 import base64
 import json
 import os
+from datetime import datetime
 
 import pytest
 from foxglove.test_server import DummyServer
@@ -202,6 +203,7 @@ async def test_webhook_open(client: AsyncClient):
     info = await SesWebhookInfo.build('Basic ZEdWemRHbHVadz09', json.dumps(d), base64.b64encode(b'testing'), client)
     assert info.message_id == 'testing-123'
     assert info.event_type == 'open'
+    assert info.timestamp is None
     assert info.unsubscribe is False
     assert info.extra == {'ip_address': '1.2.3.4'}
 
@@ -224,6 +226,13 @@ async def test_webhook_complaint(client: AsyncClient):
     assert info.event_type == 'complaint'
     assert info.unsubscribe is True
     assert info.extra == {}
+
+
+async def test_webhook_ts(client: AsyncClient):
+    message = {'eventType': 'Open', 'mail': {'messageId': 'testing-123', 'timestamp': '2020-06-05T12:30:20'}}
+    d = {'Type': 'Notification', 'Message': json.dumps(message)}
+    info = await SesWebhookInfo.build('Basic ZEdWemRHbHVadz09', json.dumps(d), base64.b64encode(b'testing'), client)
+    assert info.timestamp == datetime(2020, 6, 5, 12, 30, 20)
 
 
 async def test_webhook_bad_auth(client: AsyncClient):

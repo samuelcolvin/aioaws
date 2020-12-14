@@ -51,7 +51,7 @@ async def test_send_email_attachment(client: AsyncClient, aws: DummyServer):
 
     await ses.send_email(
         'testing@sender.com',
-        'test with attachment',
+        'test with attachment £££ more',
         ['testing@recipient.com'],
         'this is a test email',
         attachments=[SesAttachment(file=b'some binary data', name='testing.txt', mime_type='text/plain')],
@@ -59,7 +59,7 @@ async def test_send_email_attachment(client: AsyncClient, aws: DummyServer):
     assert len(aws.app['emails']) == 1
     eml = aws.app['emails'][0]
     assert eml['email'] == {
-        'Subject': 'test with attachment',
+        'Subject': 'test with attachment £££ more',
         'From': 'testing@sender.com',
         'MIME-Version': '1.0',
         'To': 'testing@recipient.com',

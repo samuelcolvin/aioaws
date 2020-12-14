@@ -1,7 +1,7 @@
 import base64
 from email import message_from_bytes
-from email.header import decode_header
-from typing import Any, Dict
+from email.header import decode_header as _decode_header
+from typing import Any, Dict, Generator
 from uuid import uuid4
 
 __all__ = 'ses_email_data', 'ses_send_response'
@@ -16,11 +16,7 @@ def ses_email_data(data: Dict[str, str]) -> Dict[str, Any]:
     d: Dict[str, Any] = {}
     for k, v in msg.items():
         if k != 'Content-Type':
-            value = decode_header(v)[0][0]
-            if isinstance(value, bytes):
-                d[k] = value.decode()
-            else:
-                d[k] = value
+            d[k] = ''.join(decode_header(v))
 
     d['payload'] = []
     for part in msg.walk():
@@ -47,3 +43,11 @@ def ses_send_response(message_id: str = None, request_id: str = None) -> str:
         f'  </ResponseMetadata>\n'
         f'</SendRawEmailResponse>\n'
     )
+
+
+def decode_header(header: str) -> Generator[None, str, None]:
+    for part, encoding in _decode_header(header):
+        if isinstance(part, str):
+            yield part
+        else:
+            yield part.decode(encoding or 'utf8')

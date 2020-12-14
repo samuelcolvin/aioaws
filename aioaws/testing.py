@@ -1,7 +1,7 @@
 import base64
 from email import message_from_bytes
 from email.header import decode_header as _decode_header
-from typing import Any, Dict, Generator
+from typing import Any, Dict, Iterable
 from uuid import uuid4
 
 __all__ = 'ses_email_data', 'ses_send_response'
@@ -45,7 +45,7 @@ def ses_send_response(message_id: str = None, request_id: str = None) -> str:
     )
 
 
-def decode_header(header: str) -> Generator[None, str, None]:
+def decode_header(header: str) -> Iterable[str]:
     for part, encoding in _decode_header(header):
         if isinstance(part, str):
             yield part

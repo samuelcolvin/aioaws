@@ -1,9 +1,11 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import pytest
 from httpx import AsyncClient
 
 from aioaws.s3 import S3Client, S3Config
+
+from .conftest import AWS
 
 pytestmark = pytest.mark.asyncio
 
@@ -42,3 +44,18 @@ async def test_list(client: AsyncClient):
         e_tag='aaa',
         storage_class='STANDARD',
     )
+
+
+async def test_real_upload(real_aws: AWS):
+    async with AsyncClient() as client:
+        s3 = S3Client(client, S3Config(real_aws.access_key, real_aws.secret_key, 'us-west-1', 'aioaws-testing'))
+
+        content = b'this is a test'
+        d = s3.signed_upload_url(
+            path='testing/',
+            filename='test.txt',
+            content_type='text/plain',
+            size=len(content),
+            expires=datetime.now() + timedelta(hours=1),
+        )
+        debug(d)

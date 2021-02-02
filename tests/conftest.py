@@ -1,6 +1,8 @@
 import asyncio
 import base64
 import json
+import os
+from dataclasses import dataclass
 
 import pytest
 from foxglove.test_server import DummyServer, create_dummy_server
@@ -88,3 +90,19 @@ def _fix_build_sns_webhook(mocker):
         return json.dumps(d)
 
     return build
+
+
+@dataclass
+class AWS:
+    access_key: str
+    secret_key: str
+
+
+@pytest.fixture(name='real_aws')
+def _fix_real_aws():
+    access_key = os.getenv('TEST_AWS_ACCESS_KEY')
+    secret_key = os.getenv('TEST_AWS_SECRET_KEY')
+    if access_key and secret_key:
+        return AWS(access_key, secret_key)
+    else:
+        pytest.skip('requires TEST_AWS_ACCESS_KEY & TEST_AWS_SECRET_KEY env var')

@@ -65,7 +65,7 @@ async def verify_signature(payload: SnsPayload, http_client: AsyncClient) -> Non
 
     certs_content = await get_resources(url, http_client)
 
-    cert = x509.load_pem_x509_certificate(certs_content)  # type: ignore
+    cert = x509.load_pem_x509_certificate(certs_content)
 
     message = get_message(payload)
     try:

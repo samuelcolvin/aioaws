@@ -4,7 +4,7 @@ import hmac
 import logging
 from binascii import hexlify
 from functools import reduce
-from typing import TYPE_CHECKING, Any, Dict, Literal, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, Literal, Optional
 
 from httpx import URL, AsyncClient, Response
 
@@ -70,7 +70,7 @@ class AwsClient:
         *,
         expected_status: int,
         params: Optional[Dict[str, Any]] = None,
-        data: Union[None, Dict[str, str]] = None,
+        data: Optional[Dict[str, str]] = None,
         files: Optional[Dict[str, bytes]] = None,
     ) -> Response:
         r = await self.client.post(url, params=params, data=data, files=files)

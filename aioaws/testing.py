@@ -1,7 +1,7 @@
 import base64
 from email import message_from_bytes
 from email.header import decode_header as _decode_header
-from typing import Any, Dict, Iterable
+from typing import Any, Dict, Iterable, Optional
 from uuid import uuid4
 
 __all__ = 'ses_email_data', 'ses_send_response'
@@ -29,7 +29,7 @@ def ses_email_data(data: Dict[str, str]) -> Dict[str, Any]:
     return {'body': dict(data), 'email': d}
 
 
-def ses_send_response(message_id: str = None, request_id: str = None) -> str:
+def ses_send_response(message_id: Optional[str] = None, request_id: Optional[str] = None) -> str:
     """
     Dummy response to SendRawEmail SES endpoint
     """

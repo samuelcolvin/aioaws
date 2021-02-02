@@ -1,4 +1,7 @@
+import re
 from io import BytesIO
+from typing import List
+from xml.etree import ElementTree
 
 from aiohttp import web
 from aiohttp.web_response import Response
@@ -6,40 +9,65 @@ from PIL import Image, ImageDraw
 
 from aioaws.testing import ses_email_data, ses_send_response
 
-s3_list_response = """\
+s3_list_response_template = """\
 <?xml version="1.0" ?>
 <ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
     <Name>testingbucket.example.org</Name>
-    <Prefix>co-slug/cat-slug/option</Prefix>
-    <KeyCount>3</KeyCount>
+    <Prefix>{prefix}</Prefix>
+    {next_token}
+    <KeyCount>{count}</KeyCount>
     <MaxKeys>1000</MaxKeys>
-    <IsTruncated>false</IsTruncated>
-    <Contents>
-        <Key>foo/bar/1.png</Key>
-        <LastModified>2032-01-01T12:34:56.000Z</LastModified>
-        <ETag>&quot;aaa&quot;</ETag>
-        <Size>123</Size>
-        <StorageClass>STANDARD</StorageClass>
-    </Contents>
-    <Contents>
-        <Key>foo/bar/2.png</Key>
-        <LastModified>2032-01-01T12:34:56.000Z</LastModified>
-        <ETag>&quot;bbb&quot;</ETag>
-        <Size>456</Size>
-        <StorageClass>STANDARD</StorageClass>
-    </Contents>
-    <Contents>
-        <Key>foo/bar/3.png</Key>
-        <LastModified>2032-01-01T12:34:56.000Z</LastModified>
-        <ETag>&quot;ccc&quot;</ETag>
-        <Size>789</Size>
-        <StorageClass>STANDARD</StorageClass>
-    </Contents>
+    <IsTruncated>{truncated}</IsTruncated>
+    {content}
 </ListBucketResult>"""
+s3_list_content_template = """\
+<Contents>
+    <Key>{name}</Key>
+    <LastModified>2032-01-01T12:34:56.000Z</LastModified>
+    <ETag>&quot;aaa&quot;</ETag>
+    <Size>123</Size>
+    <StorageClass>STANDARD</StorageClass>
+</Contents>
+"""
+xmlns = 'http://s3.amazonaws.com/doc/2006-03-01/'
+xmlns_re = re.compile(f' xmlns="{re.escape(xmlns)}"'.encode())
 
 
-async def s3_root(request):
-    return Response(body=s3_list_response, content_type='text/xml')
+async def s3_root(request: web.Request):
+    if request.url.query.get('delete') == '1':
+        assert request.method == 'POST', request.method
+        post_data = await request.read()
+        xml_root = ElementTree.fromstring(xmlns_re.sub(b'', post_data))
+        deleted = ''.join(f'<Deleted><Key>{k.find("Key").text}</Key></Deleted>' for k in xml_root)
+        body = f'<?xml version="1.0" encoding="UTF-8"?><DeleteResult>{deleted}</DeleteResult>'
+        return Response(body=body, content_type='text/xml')
+
+    assert request.method == 'GET', request.method
+    prefix = request.url.query.get('prefix', '')
+    next_token: str = ''
+    truncated: bool = False
+    files: List[str]
+    if prefix == 'broken':
+        files = ['/broken/foo.png', '/broken/bar.png']
+        truncated = True
+    elif prefix == 'many':
+        if 'continuation-token' not in request.url.query:
+            files = [f'/many/f_{i}.txt' for i in range(1000)]
+            next_token = '<NextContinuationToken>foobar123</NextContinuationToken>'
+            truncated = True
+        else:
+            files = [f'/many/f_{i}.txt' for i in range(1000, 1500)]
+    else:
+        files = ['/foo.html', 'bar.html', '/spam.html']
+
+    body = s3_list_response_template.format(
+        prefix=prefix,
+        next_token=next_token,
+        truncated=str(truncated).lower(),
+        count=len(files),
+        content='\n'.join(s3_list_content_template.format(name=f) for f in files),
+    )
+    return Response(body=body, content_type='text/xml')
 
 
 async def s3_demo_image(request):
@@ -97,7 +125,7 @@ async def aws_certs(request):
 
 
 routes = [
-    web.get('/s3/', s3_root),
+    web.route('*', '/s3/', s3_root),
     web.get('/s3_demo_image_url/{image:.*}', s3_demo_image),
     web.post('/ses/', ses_send),
     web.get('/sns/certs/', aws_certs),

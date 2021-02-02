@@ -79,7 +79,7 @@ class S3Client:
             if (t := xml_root.find('IsTruncated')) is not None and t.text == 'false':
                 break
 
-            if t := xml_root.find('NextContinuationToken'):
+            if (t := xml_root.find('NextContinuationToken')) is not None:
                 continuation_token = t.text
             else:
                 raise RuntimeError(f'unexpected response from S3: {r.text!r}')

@@ -1,6 +1,6 @@
 import pytest
 
-from aioaws import _utils, _types
+from aioaws import _types, _utils
 
 
 def test_get_config_attr():

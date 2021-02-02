@@ -2,11 +2,12 @@ import asyncio
 from datetime import datetime, timezone
 
 import pytest
+from foxglove.test_server import DummyServer
 from httpx import AsyncClient
 from pytest_toolbox.comparison import CloseToNow
 
-from aioaws.s3 import S3Client, S3Config, S3File, to_key
 from aioaws.core import RequestError
+from aioaws.s3 import S3Client, S3Config, S3File, to_key
 
 from .conftest import AWS
 
@@ -67,12 +68,35 @@ async def test_list(client: AsyncClient):
     files = [f async for f in s3.list()]
     assert len(files) == 3
     assert files[0].dict() == dict(
-        key='foo/bar/1.png',
+        key='/foo.html',
         last_modified=datetime(2032, 1, 1, 12, 34, 56, tzinfo=timezone.utc),
         size=123,
         e_tag='aaa',
         storage_class='STANDARD',
     )
+
+
+async def test_list_delete_many(client: AsyncClient, aws: DummyServer):
+    s3 = S3Client(client, S3Config('testing', 'testing', 'testing', 'testing'))
+    files = [f async for f in s3.list('many')]
+    assert len(files) == 1500
+    deleted_files = await s3.delete_recursive('many')
+    assert len(deleted_files) == 1500
+    assert aws.log == [
+        'GET /s3/?list-type=2&prefix=many > 200',
+        'GET /s3/?continuation-token=foobar123&list-type=2&prefix=many > 200',
+        'GET /s3/?list-type=2&prefix=many > 200',
+        'GET /s3/?continuation-token=foobar123&list-type=2&prefix=many > 200',
+        'POST /s3/?delete=1 > 200',
+        'POST /s3/?delete=1 > 200',
+    ]
+
+
+async def test_list_bad(client: AsyncClient):
+    s3 = S3Client(client, S3Config('testing', 'testing', 'testing', 'testing'))
+    with pytest.raises(RuntimeError, match='unexpected response from S3'):
+        async for _ in s3.list('broken'):
+            pass
 
 
 def test_to_key():
@@ -126,11 +150,11 @@ async def test_real_many(real_aws: AWS):
     async with AsyncClient() as client:
         s3 = S3Client(client, S3Config(real_aws.access_key, real_aws.secret_key, 'us-east-1', 'aioaws-testing'))
 
-        # upload 100 files
-        await asyncio.gather(*[s3.upload(f'f_{i}.txt', f'file {i}'.encode()) for i in range(100)])
+        # upload many files
+        await asyncio.gather(*[s3.upload(f'f_{i}.txt', f'file {i}'.encode()) for i in range(51)])
 
         deleted_files = await s3.delete_recursive(None)
-        assert len(deleted_files) == 100
+        assert len(deleted_files) == 51
 
 
 async def test_bad_auth():

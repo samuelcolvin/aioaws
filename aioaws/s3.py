@@ -2,6 +2,7 @@ import base64
 import hashlib
 import hmac
 import json
+import mimetypes
 import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -51,7 +52,6 @@ class S3File(BaseModel):
     class Config:
         @classmethod
         def alias_generator(cls, string: str) -> str:
-            # this is the same as `alias_generator = to_camel` above
             return ''.join(word.capitalize() for word in string.split('_'))
 
 
@@ -79,7 +79,7 @@ class S3Client:
             if (t := xml_root.find('IsTruncated')) is not None and t.text == 'false':
                 break
 
-            if t := xml_root.find('NextContinuationToken'):
+            if (t := xml_root.find('NextContinuationToken')) is not None:
                 continuation_token = t.text
             else:
                 raise RuntimeError(f'unexpected response from S3: {r.text!r}')
@@ -96,7 +96,23 @@ class S3Client:
         results = await tasks.finish()
         return list(chain(*results))
 
-    async def delete_recursive(self, prefix: str) -> List[str]:
+    async def upload(self, file_path: str, content: bytes, *, content_type: Optional[str] = None) -> None:
+        assert not file_path.startswith('/'), 'file_path must not start with /'
+        parts = file_path.rsplit('/', 1)
+
+        if content_type is None:
+            content_type, _ = mimetypes.guess_type(file_path)
+
+        d = self.signed_upload_url(
+            path=f'{parts[0]}/' if len(parts) > 1 else '',
+            filename=parts[-1],
+            content_type=content_type or 'application/octet-stream',
+            size=len(content),
+            expires=datetime.utcnow() + timedelta(minutes=30),
+        )
+        await self._aws_client.raw_post(d['url'], expected_status=204, data=d['fields'], files={'file': content})
+
+    async def delete_recursive(self, prefix: Optional[str]) -> List[str]:
         """
         Delete files starting with a specific prefix.
         """
@@ -141,7 +157,7 @@ class S3Client:
         args = {'AWSAccessKeyId': self._config.aws_access_key, 'Signature': signature, 'Expires': expires}
         if version:
             args['v'] = version
-        return f'https://{self._config.aws_s3_bucket}/{path}?{urlencode(args)}'
+        return f'https://{self._aws_client.host}/{path}?{urlencode(args)}'
 
     def signed_upload_url(
         self,
@@ -156,7 +172,7 @@ class S3Client:
         """
         https://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-post-example.html
         """
-        assert path.endswith('/'), 'path must end with "/"'
+        assert path == '' or path.endswith('/'), 'path must be empty or end with "/"'
         assert not path.startswith('/'), 'path must not start with "/"'
         key = path + filename
         policy_conditions = [
@@ -178,7 +194,7 @@ class S3Client:
         }
         b64_policy: bytes = base64.b64encode(json.dumps(policy).encode())
         fields.update(Policy=b64_policy.decode(), Signature=self._signature(b64_policy))
-        return dict(url=f'https://{self._config.aws_s3_bucket}/', fields=fields)
+        return dict(url=f'https://{self._aws_client.host}/', fields=fields)
 
     def _signature(self, to_sign: bytes) -> str:
         s = hmac.new(self._config.aws_secret_key.encode(), to_sign, hashlib.sha1).digest()

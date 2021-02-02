@@ -1,6 +1,5 @@
 import base64
 import json
-import os
 from datetime import datetime
 
 import pytest
@@ -10,6 +9,8 @@ from pytest_toolbox.comparison import RegexStr
 
 from aioaws.ses import SesAttachment, SesClient, SesConfig, SesRecipient, SesWebhookInfo
 from aioaws.sns import SnsWebhookError
+
+from .conftest import AWS
 
 pytestmark = pytest.mark.asyncio
 
@@ -285,15 +286,9 @@ async def test_webhook_subscribe(client: AsyncClient, aws: DummyServer, mocker):
     assert aws.log == ['GET /sns/certs/ > 200', 'GET /status/200/?Action=1234 > 200']
 
 
-real_ses_test = pytest.mark.skipif(not os.getenv('TEST_AWS_ACCESS_KEY'), reason='requires TEST_AWS_ACCESS_KEY env var')
-
-
-@real_ses_test
-async def test_send_real():
-    access_key = os.getenv('TEST_AWS_ACCESS_KEY')
-    secret_key = os.getenv('TEST_AWS_SECRET_KEY')
+async def test_real_send(real_aws: AWS):
     async with AsyncClient() as client:
-        ses = SesClient(client, SesConfig(access_key, secret_key, 'eu-west-1'))
+        ses = SesClient(client, SesConfig(real_aws.access_key, real_aws.secret_key, 'eu-west-1'))
 
         message_id = await ses.send_email(
             'testing@scolvin.com',

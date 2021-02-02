@@ -104,7 +104,7 @@ class S3Client:
             content_type, _ = mimetypes.guess_type(file_path)
 
         d = self.signed_upload_url(
-            path=f'{parts[0]}/' if len(parts) > 1 else '/',
+            path=f'{parts[0]}/' if len(parts) > 1 else '',
             filename=parts[-1],
             content_type=content_type or 'application/octet-stream',
             size=len(content),
@@ -112,7 +112,7 @@ class S3Client:
         )
         await self._aws_client.raw_post(d['url'], expected_status=204, data=d['fields'], files={'file': content})
 
-    async def delete_recursive(self, prefix: str) -> List[str]:
+    async def delete_recursive(self, prefix: Optional[str]) -> List[str]:
         """
         Delete files starting with a specific prefix.
         """
@@ -157,7 +157,7 @@ class S3Client:
         args = {'AWSAccessKeyId': self._config.aws_access_key, 'Signature': signature, 'Expires': expires}
         if version:
             args['v'] = version
-        return f'https://{self._config.aws_s3_bucket}/{path}?{urlencode(args)}'
+        return f'https://{self._aws_client.host}/{path}?{urlencode(args)}'
 
     def signed_upload_url(
         self,
@@ -172,7 +172,7 @@ class S3Client:
         """
         https://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-post-example.html
         """
-        assert path.endswith('/'), 'path must end with "/"'
+        assert path == '' or path.endswith('/'), 'path must be empty or end with "/"'
         assert not path.startswith('/'), 'path must not start with "/"'
         key = path + filename
         policy_conditions = [

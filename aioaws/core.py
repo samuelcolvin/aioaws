@@ -74,9 +74,10 @@ class AwsClient:
         files: Optional[Dict[str, bytes]] = None,
     ) -> Response:
         r = await self.client.post(url, params=params, data=data, files=files)
-        if r.status_code != expected_status:
+        if r.status_code == expected_status:
+            return r
+        else:
             raise RequestError(r)
-        return r
 
     async def post(
         self,

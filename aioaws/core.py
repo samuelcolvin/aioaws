@@ -70,7 +70,7 @@ class AwsClient:
         *,
         expected_status: int,
         params: Optional[Dict[str, Any]] = None,
-        data: Union[None, Dict[str, str]] = None,
+        data: Optional[Dict[str, str]] = None,
         files: Optional[Dict[str, bytes]] = None,
     ) -> Response:
         r = await self.client.post(url, params=params, data=data, files=files)

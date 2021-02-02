@@ -129,7 +129,7 @@ async def test_real_upload(real_aws: AWS):
             }
         finally:
             assert await s3.delete(path) == [path]
-            assert [f.dict() async for f in s3.list()] == []
+            assert [f.dict() async for f in s3.list(f'{run_prefix}/')] == []
 
 
 async def test_real_download_link(real_aws: AWS):

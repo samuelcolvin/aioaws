@@ -16,6 +16,9 @@ jobs:
       matrix:
         os: [ubuntu, windows, macos]
         python-version: ['3.8', '3.9']
+        exclude:
+          - os: windows
+            node: '3.9'
 
     runs-on: ${{ matrix.os }}-latest
 
@@ -31,6 +34,7 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
 
+    - run: pip install -U pip wheel
     - run: pip install -r tests/requirements.txt
     - run: pip install .
     - run: pip freeze
@@ -58,8 +62,9 @@ jobs:
       with:
         python-version: '3.8'
 
-    - run: pip install -r requirements.txt
+    - run: pip install -U pip wheel
     - run: pip install -r tests/requirements-linting.txt
+    - run: pip install .
 
     - run: make lint
     - run: make mypy

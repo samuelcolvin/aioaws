@@ -4,7 +4,7 @@ import hmac
 import logging
 from binascii import hexlify
 from functools import reduce
-from typing import TYPE_CHECKING, Any, Dict, Literal, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, Literal, Optional
 
 from httpx import URL, AsyncClient, Response
 

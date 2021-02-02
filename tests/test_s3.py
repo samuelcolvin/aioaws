@@ -110,7 +110,7 @@ def test_to_key():
 
 
 async def test_real_upload(real_aws: AWS):
-    async with AsyncClient() as client:
+    async with AsyncClient(timeout=30) as client:
         s3 = S3Client(client, S3Config(real_aws.access_key, real_aws.secret_key, 'us-east-1', 'aioaws-testing'))
 
         path = f'{run_prefix}/testing/test.txt'
@@ -134,7 +134,7 @@ async def test_real_upload(real_aws: AWS):
 
 
 async def test_real_download_link(real_aws: AWS):
-    async with AsyncClient() as client:
+    async with AsyncClient(timeout=30) as client:
         s3 = S3Client(client, S3Config(real_aws.access_key, real_aws.secret_key, 'us-east-1', 'aioaws-testing'))
 
         await s3.upload(f'{run_prefix}/foobar.txt', b'hello', content_type='text/html')
@@ -151,7 +151,7 @@ async def test_real_download_link(real_aws: AWS):
 
 
 async def test_real_many(real_aws: AWS):
-    async with AsyncClient() as client:
+    async with AsyncClient(timeout=30) as client:
         s3 = S3Client(client, S3Config(real_aws.access_key, real_aws.secret_key, 'us-east-1', 'aioaws-testing'))
 
         # upload many files
@@ -162,7 +162,7 @@ async def test_real_many(real_aws: AWS):
 
 
 async def test_bad_auth():
-    async with AsyncClient() as client:
+    async with AsyncClient(timeout=30) as client:
         s3 = S3Client(client, S3Config('BAD_access_key', 'BAD_secret_key', 'us-east-1', 'foobar'))
 
         with pytest.raises(RequestError) as exc_info:

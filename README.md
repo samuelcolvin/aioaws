@@ -102,7 +102,7 @@ async def s3_demo(client: AsyncClient):
     #> https://my_bucket_name.com/path/to/demo.png?....
 
 async def main():
-    async with AsyncClient() as client:
+    async with AsyncClient(timeout=30) as client:
         await s3_demo(client)
 
 asyncio.run(main())

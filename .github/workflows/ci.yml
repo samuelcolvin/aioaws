@@ -58,7 +58,7 @@ jobs:
       with:
         python-version: '3.8'
 
-    - run: pip install -r tests/requirements.txt
+    - run: pip install -r requirements.txt
     - run: pip install -r tests/requirements-linting.txt
 
     - run: make lint

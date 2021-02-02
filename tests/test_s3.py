@@ -1,4 +1,5 @@
 import asyncio
+import secrets
 from datetime import datetime, timezone
 
 import pytest
@@ -12,6 +13,8 @@ from aioaws.s3 import S3Client, S3Config, S3File, to_key
 from .conftest import AWS
 
 pytestmark = pytest.mark.asyncio
+
+run_prefix = secrets.token_hex()[:10]
 
 
 def test_upload_url():
@@ -110,13 +113,14 @@ async def test_real_upload(real_aws: AWS):
     async with AsyncClient() as client:
         s3 = S3Client(client, S3Config(real_aws.access_key, real_aws.secret_key, 'us-east-1', 'aioaws-testing'))
 
-        await s3.upload('testing/test.txt', b'this is a test')
+        path = f'{run_prefix}/testing/test.txt'
+        await s3.upload(path, b'this is a test')
 
         files = [f.dict() async for f in s3.list()]
         # debug(files)
         assert files == [
             {
-                'key': 'testing/test.txt',
+                'key': path,
                 'last_modified': CloseToNow(delta=10),
                 'size': 14,
                 'e_tag': '54b0c58c7ce9f2a8b551351102ee0938',
@@ -124,7 +128,7 @@ async def test_real_upload(real_aws: AWS):
             },
         ]
 
-        assert await s3.delete('testing/test.txt') == ['testing/test.txt']
+        assert await s3.delete(path) == [path]
 
         assert [f.dict() async for f in s3.list()] == []
 
@@ -133,17 +137,17 @@ async def test_real_download_link(real_aws: AWS):
     async with AsyncClient() as client:
         s3 = S3Client(client, S3Config(real_aws.access_key, real_aws.secret_key, 'us-east-1', 'aioaws-testing'))
 
-        await s3.upload('foobar.txt', b'hello', content_type='text/html')
+        await s3.upload(f'{run_prefix}/foobar.txt', b'hello', content_type='text/html')
 
         try:
-            url = s3.signed_download_url('foobar.txt')
+            url = s3.signed_download_url(f'{run_prefix}/foobar.txt')
             r = await client.get(url)
             assert r.status_code == 200, r.text
             assert r.text == 'hello'
             assert r.headers['content-type'] == 'text/html'
 
         finally:
-            await s3.delete('foobar.txt')
+            await s3.delete(f'{run_prefix}/foobar.txt')
 
 
 async def test_real_many(real_aws: AWS):
@@ -151,9 +155,9 @@ async def test_real_many(real_aws: AWS):
         s3 = S3Client(client, S3Config(real_aws.access_key, real_aws.secret_key, 'us-east-1', 'aioaws-testing'))
 
         # upload many files
-        await asyncio.gather(*[s3.upload(f'f_{i}.txt', f'file {i}'.encode()) for i in range(51)])
+        await asyncio.gather(*[s3.upload(f'{run_prefix}/f_{i}.txt', f'file {i}'.encode()) for i in range(51)])
 
-        deleted_files = await s3.delete_recursive(None)
+        deleted_files = await s3.delete_recursive(f'{run_prefix}/')
         assert len(deleted_files) == 51
 
 

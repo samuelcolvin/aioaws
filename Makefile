@@ -6,7 +6,7 @@ black = black -S -l 120 --target-version py37 aioaws tests
 install:
 	python -m pip install -U setuptools pip
 	pip install -U -r requirements.txt
-	pip install -U -r requirements-linting.txt
+	pip install -U -r tests/requirements-linting.txt
 	pip install -e .
 
 .PHONY: format

@@ -4,7 +4,7 @@ import hmac
 import logging
 from binascii import hexlify
 from functools import reduce
-from typing import TYPE_CHECKING, Any, Dict, Literal, Optional
+from typing import TYPE_CHECKING, Any, Dict, Literal, Optional, Union
 
 from httpx import URL, AsyncClient, Response
 
@@ -55,7 +55,7 @@ class AwsClient:
             bucket = get_config_attr(config, 'aws_s3_bucket')
             if '.' in bucket:
                 # assumes the bucket is a domain and is already as a CNAME record for S3
-                self.host = get_config_attr(config, 'aws_s3_bucket')
+                self.host = bucket
             else:
                 self.host = f'{bucket}.s3.amazonaws.com'
 
@@ -63,6 +63,20 @@ class AwsClient:
 
     async def get(self, path: str = '', *, params: Optional[Dict[str, Any]] = None) -> Response:
         return await self.request('GET', path=path, params=params)
+
+    async def raw_post(
+        self,
+        url: str,
+        *,
+        expected_status: int,
+        params: Optional[Dict[str, Any]] = None,
+        data: Union[None, Dict[str, str]] = None,
+        files: Optional[Dict[str, bytes]] = None,
+    ) -> Response:
+        r = await self.client.post(url, params=params, data=data, files=files)
+        if r.status_code != expected_status:
+            raise RequestError(r)
+        return r
 
     async def post(
         self,

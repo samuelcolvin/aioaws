@@ -64,7 +64,9 @@ class S3Client:
 
     async def list(self, prefix: Optional[str] = None) -> AsyncIterable[S3File]:
         """
-        List S3 files with the given prefix
+        List S3 files with the given prefix.
+
+        https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListObjectsV2.html
         """
         assert prefix is None or not prefix.startswith('/'), 'the prefix to filter by should not start with "/"'
         continuation_token = None
@@ -130,6 +132,9 @@ class S3Client:
         return list(chain(*results))
 
     async def _delete_1000_files(self, *files: Union[str, S3File]) -> List[str]:
+        """
+        https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteObjects.html
+        """
         assert len(files) <= 1000, f'_delete_1000_files can delete 1000 files max, not {len(files)}'
         xml = (
             f'<?xml version="1.0" encoding="UTF-8"?>'

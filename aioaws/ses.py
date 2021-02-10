@@ -200,6 +200,7 @@ class SesWebhookInfo:
     unsubscribe: bool
     details: Dict[str, Any]
     tags: Dict[str, str]
+    full_message: Dict[str, Any]
     request_data: Dict[str, Any]
 
     @classmethod
@@ -244,5 +245,6 @@ class SesWebhookInfo:
             unsubscribe=unsubscribe,
             tags={k: v[0] for k, v in tags.items()},
             details=details,
+            full_message=message,
             request_data=payload.request_data,
         )

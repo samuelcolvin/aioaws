@@ -207,6 +207,7 @@ async def test_webhook_open(client: AsyncClient, build_sns_webhook):
     assert info.timestamp is None
     assert info.unsubscribe is False
     assert info.details == {'ipAddress': '1.2.3.4'}
+    assert info.full_message == message
 
 
 async def test_webhook_bounce(client: AsyncClient, build_sns_webhook):

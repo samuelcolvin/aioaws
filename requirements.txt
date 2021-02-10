@@ -1,5 +1,5 @@
 -r tests/requirements.txt
 aiofiles==0.6.0
-cryptography==3.3.2
+cryptography==3.4.4
 httpx==0.16.1
 pydantic==1.7.3

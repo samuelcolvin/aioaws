@@ -24,7 +24,7 @@ _CANONICAL_REQUEST = """\
 {query}
 {canonical_headers}
 {signed_headers}
-{payload_hash}"""
+{payload_sha256_hash}"""
 _AUTH_ALGORITHM = 'AWS4-HMAC-SHA256'
 _CREDENTIAL_SCOPE = '{date_stamp}/{region}/{service}/{auth_request}'
 _STRING_TO_SIGN = """\
@@ -130,10 +130,16 @@ class AwsClient:
         date_stamp = n.strftime('%Y%m%d')
         data = data or b''
         content_type = content_type or _CONTENT_TYPE
-        headers = {'content-type': content_type, 'host': self.host, 'x-amz-date': x_amz_date}
-        if data is not None:
-            headers['content-md5'] = base64.b64encode(hashlib.md5(data).digest()).decode()
-        headers = {k: v for k, v in sorted(headers.items())}
+
+        # WARNING! order is important here, headers need to be in alphabetical order
+        headers = {
+            'content-md5': base64.b64encode(hashlib.md5(data).digest()).decode(),
+            'content-type': content_type,
+            'host': self.host,
+            'x-amz-date': x_amz_date,
+        }
+
+        payload_sha256_hash = hashlib.sha256(data).hexdigest()
         ctx = dict(
             method=method,
             path=url.path,
@@ -143,10 +149,10 @@ class AwsClient:
             x_amz_date=x_amz_date,
             auth_request=_AWS_AUTH_REQUEST,
             date_stamp=date_stamp,
-            payload_hash=hashlib.sha256(data).hexdigest(),
+            payload_sha256_hash=payload_sha256_hash,
             region=self.region,
             service=self.service,
-            signed_headers=';'.join(headers.keys()),
+            signed_headers=';'.join(headers),
         )
         ctx.update(credential_scope=_CREDENTIAL_SCOPE.format(**ctx))
         canonical_headers = ''.join(f'{k}:{v}\n' for k, v in headers.items())
@@ -166,9 +172,7 @@ class AwsClient:
         signature: bytes = reduce(_reduce_signature, key_parts)  # type: ignore
 
         authorization_header = _AUTH_HEADER.format(signature=hexlify(signature).decode(), **ctx)
-        headers.update(
-            {'authorization': authorization_header, 'x-amz-content-sha256': hashlib.sha256(data).hexdigest()}
-        )
+        headers.update({'authorization': authorization_header, 'x-amz-content-sha256': payload_sha256_hash})
         return headers
 
 

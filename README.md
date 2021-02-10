@@ -19,7 +19,7 @@ It currently supports:
 * **SNS** - enough to get notifications about mail delivery from SES
 * [AWS Signature Version 4](https://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-auth-using-authorization-header.html)
   authentication for any AWS service (this is the only clean & modern implementation of AWS4 I know of in python, see
-  [`core.py`](https://github.com/samuelcolvin/aioaws/blob/master/aioaws/core.py#L120-L172))
+  [`core.py`](https://github.com/samuelcolvin/aioaws/blob/master/aioaws/core.py#L120-L175))
 
 The only dependencies of **aioaws**, are:
 * **aiofiles** - for asynchronous reading of files

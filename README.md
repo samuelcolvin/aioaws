@@ -17,6 +17,9 @@ It currently supports:
 * **S3** - list, delete, recursive delete, generating signed upload URLs, generating signed download URLs
 * **SES** - sending emails including with attachments and multipart
 * **SNS** - enough to get notifications about mail delivery from SES
+* [AWS Signature Version 4](https://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-auth-using-authorization-header.html)
+  authentication for any AWS service (this is the only clean & modern implementation of AWS4 I know of in python, see
+  [`core.py`](https://github.com/samuelcolvin/aioaws/blob/master/aioaws/core.py#L120-L172))
 
 The only dependencies of **aioaws**, are:
 * **aiofiles** - for asynchronous reading of files
@@ -186,5 +189,5 @@ async def ses_webhook(request: Request):
     ...
 ```
 
-See [here](https://github.com/samuelcolvin/aioaws/blob/237cfc5cf06bb987e8c0614b4515aeed6475c9e2/aioaws/ses.py#L196-L203)
+See [here](https://github.com/samuelcolvin/aioaws/blob/master/aioaws/ses.py#L196-L204)
 for more information about what's provided in a `SesWebhookInfo`.

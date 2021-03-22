@@ -1,4 +1,4 @@
-aiohttp==3.7.3
+aiohttp==3.7.4
 foxglove-web==0.0.18
 pillow==8.1.1
 coverage==5.4

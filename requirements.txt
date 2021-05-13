@@ -2,4 +2,4 @@
 aiofiles==0.6.0
 cryptography==3.4.4
 httpx==0.16.1
-pydantic==1.7.3
+pydantic==1.7.4

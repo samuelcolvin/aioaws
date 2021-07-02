@@ -1,5 +1,6 @@
 import base64
 import json
+import re
 from datetime import datetime
 
 import pytest
@@ -73,6 +74,34 @@ async def test_send_email_attachment(client: AsyncClient, aws: DummyServer):
             },
         ],
     }
+    raw_body = base64.b64decode(eml['body']['RawMessage.Data'].encode())
+
+    assert re.fullmatch(
+        (
+            br'Subject: test with attachment =\?utf-8\?b\?wqPCo8Kj\?= more\n'
+            br'From: testing@sender\.com\n'
+            br'To: testing@recipient\.com\n'
+            br'MIME-Version: 1\.0\n'
+            br'Content-Type: multipart/mixed; boundary="===============(\d+)=="\n'
+            br'\n'
+            br'--===============\1==\n'
+            br'Content-Type: text/plain; charset="utf-8"\n'
+            br'Content-Transfer-Encoding: 7bit\n'
+            br'\n'
+            br'this is a test email\n'
+            br'\n'
+            br'--===============(\d+)==\n'
+            br'Content-Type: text/plain\n'
+            br'MIME-Version: 1\.0\n'
+            br'Content-Transfer-Encoding: base64\n'
+            br'Content-Disposition: attachment; filename="testing\.txt"\n'
+            br'\n'
+            br'c29tZSBiaW5hcnkgZGF0YQ==\n'
+            br'\n'
+            br'--===============\2==--\n'
+        ),
+        raw_body,
+    )
 
 
 async def test_attachment_path(client: AsyncClient, aws: DummyServer, tmp_path):
@@ -146,6 +175,59 @@ async def test_send_names(client: AsyncClient, aws: DummyServer):
         'Bcc': 'bcc@exmaple.com',
         'payload': [{'Content-Type': 'text/plain', 'payload': 'this is a test email\n'}],
     }
+
+
+async def test_attachment_email_with_html(client: AsyncClient, aws: DummyServer):
+    ses = SesClient(client, SesConfig('test_access_key', 'test_secret_key', 'testing-region-1'))
+
+    await ses.send_email(
+        'testing@sender.com',
+        'the subject',
+        ['testing@recipient.com'],
+        'this is a test email',
+        html_body='this is the <b>html body</b>.',
+        attachments=[SesAttachment(file=b'some attachment', name='testing.txt', mime_type='application/pdf')],
+    )
+    assert len(aws.app['emails']) == 1
+    eml = aws.app['emails'][0]
+    assert eml['email']['Subject'] == 'the subject'
+    raw_body = base64.b64decode(eml['body']['RawMessage.Data'].encode())
+    assert re.fullmatch((
+        br'Subject: the subject\n'
+        br'From: testing@sender\.com\n'
+        br'To: testing@recipient\.com\n'
+        br'MIME-Version: 1\.0\n'
+        br'Content-Type: multipart/mixed; boundary="===============(\d+)=="\n'
+        br'\n'
+        br'--===============\1==\n'
+        br'Content-Type: multipart/alternative;\n'
+        br' boundary="===============(\d+)=="\n'
+        br'\n'
+        br'--===============\2==\n'
+        br'Content-Type: text/plain; charset="utf-8"\n'
+        br'Content-Transfer-Encoding: 7bit\n'
+        br'\n'
+        br'this is a test email\n'
+        br'\n'
+        br'--===============\2==\n'
+        br'Content-Type: text/html; charset="utf-8"\n'
+        br'Content-Transfer-Encoding: 7bit\n'
+        br'MIME-Version: 1\.0\n'
+        br'\n'
+        br'this is the <b>html body</b>\.\n'
+        br'\n'
+        br'--===============\2==--\n'
+        br'\n'
+        br'--===============\1==\n'
+        br'Content-Type: text/plain\n'
+        br'MIME-Version: 1\.0\n'
+        br'Content-Transfer-Encoding: base64\n'
+        br'Content-Disposition: attachment; filename="testing\.txt"\n'
+        br'\n'
+        br'c29tZSBhdHRhY2htZW50\n'
+        br'\n'
+        br'--===============\1==--\n'
+    ), raw_body)
 
 
 async def test_custom_headers(client: AsyncClient, aws: DummyServer):

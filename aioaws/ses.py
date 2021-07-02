@@ -116,14 +116,14 @@ class SesClient:
             email_msg.add_alternative(html_body, subtype='html')
 
         total_size = 0
-        for attachment in attachments or []:
-            attachment_msg, size = await prepare_attachment(attachment)
-            total_size += size
-            if total_size > max_total_size:
-                raise ValueError(f'attachment size {total_size} greater than 10MB')
-            if email_msg.get_content_maintype() == 'text':
-                email_msg.make_mixed()
-            email_msg.attach(attachment_msg)
+        if attachments:
+            email_msg.make_mixed()
+            for attachment in attachments or []:
+                attachment_msg, size = await prepare_attachment(attachment)
+                total_size += size
+                if total_size > max_total_size:
+                    raise ValueError(f'attachment size {total_size} greater than 10MB')
+                email_msg.attach(attachment_msg)
 
         return await self.send_raw_email(e_from_recipient.email, email_msg, to=to_r, cc=cc_r, bcc=bcc_r)
 

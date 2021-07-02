@@ -102,7 +102,7 @@ class AwsClient:
         r = await self.client.request(
             method,
             url,
-            data=data,  # type: ignore
+            content=data,
             headers=self._auth_headers(method, url, data=data, content_type=content_type),
         )
         if r.status_code != 200:

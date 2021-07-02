@@ -51,7 +51,7 @@ setup(
     install_requires=[
         'aiofiles>=0.5.0',
         'cryptography>=3.1.1',
-        'httpx>=0.15.5',
-        'pydantic>=1.6.1',
+        'httpx>=0.18.4',
+        'pydantic>=1.7.4',
     ],
 )

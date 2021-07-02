@@ -118,7 +118,7 @@ class SesClient:
         total_size = 0
         if attachments:
             email_msg.make_mixed()
-            for attachment in attachments or []:
+            for attachment in attachments:
                 attachment_msg, size = await prepare_attachment(attachment)
                 total_size += size
                 if total_size > max_total_size:

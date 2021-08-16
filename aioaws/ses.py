@@ -225,7 +225,6 @@ class SesWebhookInfo:
             )
 
         message_id = message['mail']['messageId']
-        logger.info('%s for message %s', event_type, message_id)
 
         details = message.get(event_type) or {}
         mail = message.get('mail') or {}

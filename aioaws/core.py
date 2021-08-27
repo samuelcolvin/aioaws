@@ -102,26 +102,21 @@ class AwsClient:
         #     )
         return r
 
-    def signed_download_params(self, method: Literal['GET', 'POST'], url: URL, expires: int = 86400) -> Dict[str, str]:
+    def add_signed_download_params(self, method: Literal['GET', 'POST'], url: URL, expires: int = 86400) -> URL:
         assert expires >= 1, f'expires must be greater than or equal to 1, not {expires}'
         assert expires <= 604800, f'expires must be less than or equal to 604800, not {expires}'
         now = utcnow()
-        args = {
-            'host': self.host,
-            'x-amz-algorithm': _AUTH_ALGORITHM,
-            'x-amz-credential': self._aws4_credential(now),
-            'x-amz-expires': str(expires),
-            'x-amz-date': _aws4_x_amz_date(now),
-        }
-
-        signed_headers, signature = self._aws4_signature(now, method, url, args, 'UNSIGNED-PAYLOAD')
-        args.update(
+        url = url.copy_merge_params(
             {
-                'x-amz-signedheaders': signed_headers,
-                'x-amz-signature': signature,
+                'X-Amz-Algorithm': _AUTH_ALGORITHM,
+                'X-Amz-Credential': self._aws4_credential(now),
+                'X-Amz-Date': _aws4_x_amz_date(now),
+                'X-Amz-Expires': str(expires),
+                'X-Amz-SignedHeaders': 'host',
             }
         )
-        return args
+        _, signature = self._aws4_signature(now, method, url, {'host': self.host}, 'UNSIGNED-PAYLOAD')
+        return url.copy_add_param('X-Amz-Signature', signature)
 
     def _auth_headers(
         self,
@@ -165,11 +160,12 @@ class AwsClient:
             signed_headers,
             payload_hash,
         )
+        canonical_request = '\n'.join(canonical_request_parts)
         string_to_sign_parts = (
             _AUTH_ALGORITHM,
             _aws4_x_amz_date(dt),
             self._aws4_scope(dt),
-            hashlib.sha256('\n'.join(canonical_request_parts).encode()).hexdigest(),
+            hashlib.sha256(canonical_request.encode()).hexdigest(),
         )
         string_to_sign = '\n'.join(string_to_sign_parts)
 

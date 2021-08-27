@@ -8,7 +8,6 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from itertools import chain
 from typing import TYPE_CHECKING, Any, AsyncIterable, Dict, List, Optional, Union
-from urllib.parse import urlencode
 from xml.etree import ElementTree
 
 from httpx import URL, AsyncClient
@@ -155,10 +154,10 @@ class S3Client:
         """
         assert not path.startswith('/'), 'path should not start with /'
         url = URL(f'https://{self._aws_client.host}/{path}')
-        args = self._aws_client.signed_download_params('GET', url, max_age)
+        url = self._aws_client.add_signed_download_params('GET', url, max_age)
         if version:
-            args['v'] = version
-        return f'{url}?{urlencode(args)}'
+            url.params.add('v', version)
+        return str(url)
 
     def signed_upload_url(
         self,

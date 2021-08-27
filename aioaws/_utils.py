@@ -7,7 +7,7 @@ from httpx import Response
 if TYPE_CHECKING:
     from ._types import BaseConfigProtocol
 
-__all__ = 'get_config_attr', 'to_unix_s', 'utcnow', 'ManyTasks'
+__all__ = 'get_config_attr', 'to_unix_s', 'utcnow', 'ManyTasks', 'pretty_response'
 
 EPOCH = datetime(1970, 1, 1)
 EPOCH_TZ = EPOCH.replace(tzinfo=timezone.utc)

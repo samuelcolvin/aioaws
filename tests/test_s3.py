@@ -17,7 +17,8 @@ pytestmark = pytest.mark.asyncio
 run_prefix = secrets.token_hex()[:10]
 
 
-def test_upload_url():
+def test_upload_url(mocker):
+    mocker.patch('aioaws.s3.utcnow', return_value=datetime(2032, 1, 1))
     s3 = S3Client('-', S3Config('testing', 'testing', 'testing', 'testing.com'))
     d = s3.signed_upload_url(
         path='testing/', filename='test.png', content_type='image/png', size=123, expires=datetime(2032, 1, 1)
@@ -27,20 +28,25 @@ def test_upload_url():
         'fields': {
             'Key': 'testing/test.png',
             'Content-Type': 'image/png',
-            'AWSAccessKeyId': 'testing',
             'Content-Disposition': 'attachment; filename="test.png"',
             'Policy': (
                 'eyJleHBpcmF0aW9uIjogIjIwMzItMDEtMDFUMDA6MDA6MDBaIiwgImNvbmRpdGlvbnMiOiBbeyJidWNrZXQiOiAidGVzdGluZy5jb'
                 '20ifSwgeyJrZXkiOiAidGVzdGluZy90ZXN0LnBuZyJ9LCB7ImNvbnRlbnQtdHlwZSI6ICJpbWFnZS9wbmcifSwgWyJjb250ZW50LW'
                 'xlbmd0aC1yYW5nZSIsIDEyMywgMTIzXSwgeyJDb250ZW50LURpc3Bvc2l0aW9uIjogImF0dGFjaG1lbnQ7IGZpbGVuYW1lPVwidGV'
-                'zdC5wbmdcIiJ9XX0='
+                'zdC5wbmdcIiJ9LCB7IngtYW16LWNyZWRlbnRpYWwiOiAidGVzdGluZy8yMDMyMDEwMS90ZXN0aW5nL3MzL2F3czRfcmVxdWVzdCJ9'
+                'LCB7IngtYW16LWFsZ29yaXRobSI6ICJBV1M0LUhNQUMtU0hBMjU2In0sIHsieC1hbXotZGF0ZSI6ICIyMDMyMDEwMVQwMDAwMDBaI'
+                'n1dfQ=='
             ),
-            'Signature': 'dnnmIX/z9J5ClnI11ZzDyPVSxUY=',
+            'X-Amz-Algorithm': 'AWS4-HMAC-SHA256',
+            'X-Amz-Credential': 'testing/20320101/testing/s3/aws4_request',
+            'X-Amz-Date': '20320101T000000Z',
+            'X-Amz-Signature': '6f03af4c50aacb313ceb038743ca035bc2da2dc3bf9d1289f5cb946c6c940a60',
         },
     }
 
 
-def test_upload_url_no_content_disp():
+def test_upload_url_no_content_disp(mocker):
+    mocker.patch('aioaws.s3.utcnow', return_value=datetime(2032, 1, 1))
     s3 = S3Client('-', S3Config('testing', 'testing', 'testing', 'testing'))
     d = s3.signed_upload_url(
         path='testing/',
@@ -55,13 +61,17 @@ def test_upload_url_no_content_disp():
         'fields': {
             'Key': 'testing/test.png',
             'Content-Type': 'image/png',
-            'AWSAccessKeyId': 'testing',
             'Policy': (
                 'eyJleHBpcmF0aW9uIjogIjIwMzItMDEtMDFUMDA6MDA6MDBaIiwgImNvbmRpdGlvbnMiOiBbeyJidWNrZXQiOiAidGVzdGluZyJ9L'
                 'CB7ImtleSI6ICJ0ZXN0aW5nL3Rlc3QucG5nIn0sIHsiY29udGVudC10eXBlIjogImltYWdlL3BuZyJ9LCBbImNvbnRlbnQtbGVuZ3'
-                'RoLXJhbmdlIiwgMTIzLCAxMjNdXX0='
+                'RoLXJhbmdlIiwgMTIzLCAxMjNdLCB7IngtYW16LWNyZWRlbnRpYWwiOiAidGVzdGluZy8yMDMyMDEwMS90ZXN0aW5nL3MzL2F3czR'
+                'fcmVxdWVzdCJ9LCB7IngtYW16LWFsZ29yaXRobSI6ICJBV1M0LUhNQUMtU0hBMjU2In0sIHsieC1hbXotZGF0ZSI6ICIyMDMyMDEw'
+                'MVQwMDAwMDBaIn1dfQ=='
             ),
-            'Signature': 'xi9Vv7t8UL2iaHtX88J/ezS+fBI=',
+            'X-Amz-Algorithm': 'AWS4-HMAC-SHA256',
+            'X-Amz-Credential': 'testing/20320101/testing/s3/aws4_request',
+            'X-Amz-Date': '20320101T000000Z',
+            'X-Amz-Signature': '1e34d3e5a850d48ea970ae43c745eaf60d3100607dceab1b4bfc0cc63d8641c2',
         },
     }
 
@@ -109,7 +119,7 @@ def test_to_key():
         to_key(123)
 
 
-def test_aws4_signature(client: AsyncClient, mocker):
+def test_aws4_download_signature(client: AsyncClient, mocker):
     # example direct from docs
     # https://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-query-string-auth.html#query-string-auth-v4-signing-example
     mocker.patch('aioaws.core.utcnow', return_value=datetime(2013, 5, 24))
@@ -125,6 +135,33 @@ def test_aws4_signature(client: AsyncClient, mocker):
         '&X-Amz-Expires=86400&X-Amz-SignedHeaders=host'
         '&X-Amz-Signature=aeeed9bbccd4d02ee5c0109b86d86835f995330da4c265957d157751f604d404'
     )
+
+
+def test_aws4_upload_signature(client: AsyncClient, mocker):
+    # https://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-post-example.html
+    now = datetime(2015, 12, 29)
+    mocker.patch('aioaws.core.utcnow', return_value=now)
+    access_key = 'AKIAIOSFODNN7EXAMPLE'
+    secret_key = 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY'
+    s3 = S3Client(client, S3Config(access_key, secret_key, 'us-east-1', 'sigv4examplebucket'))
+    b64_policy = (
+        'eyAiZXhwaXJhdGlvbiI6ICIyMDE1LTEyLTMwVDEyOjAwOjAwLjAwMFoiLA0KICAiY29uZGl0aW9ucyI6IFsNCiAgICB7ImJ1Y2tldCI6ICJza'
+        'Wd2NGV4YW1wbGVidWNrZXQifSwNCiAgICBbInN0YXJ0cy13aXRoIiwgIiRrZXkiLCAidXNlci91c2VyMS8iXSwNCiAgICB7ImFjbCI6ICJwdW'
+        'JsaWMtcmVhZCJ9LA0KICAgIHsic3VjY2Vzc19hY3Rpb25fcmVkaXJlY3QiOiAiaHR0cDovL3NpZ3Y0ZXhhbXBsZWJ1Y2tldC5zMy5hbWF6b25'
+        'hd3MuY29tL3N1Y2Nlc3NmdWxfdXBsb2FkLmh0bWwifSwNCiAgICBbInN0YXJ0cy13aXRoIiwgIiRDb250ZW50LVR5cGUiLCAiaW1hZ2UvIl0s'
+        'DQogICAgeyJ4LWFtei1tZXRhLXV1aWQiOiAiMTQzNjUxMjM2NTEyNzQifSwNCiAgICB7IngtYW16LXNlcnZlci1zaWRlLWVuY3J5cHRpb24iO'
+        'iAiQUVTMjU2In0sDQogICAgWyJzdGFydHMtd2l0aCIsICIkeC1hbXotbWV0YS10YWciLCAiIl0sDQoNCiAgICB7IngtYW16LWNyZWRlbnRpYW'
+        'wiOiAiQUtJQUlPU0ZPRE5ON0VYQU1QTEUvMjAxNTEyMjkvdXMtZWFzdC0xL3MzL2F3czRfcmVxdWVzdCJ9LA0KICAgIHsieC1hbXotYWxnb3J'
+        'pdGhtIjogIkFXUzQtSE1BQy1TSEEyNTYifSwNCiAgICB7IngtYW16LWRhdGUiOiAiMjAxNTEyMjlUMDAwMDAwWiIgfQ0KICBdDQp9'
+    )
+
+    d = s3._aws_client.signed_upload_fields(now, b64_policy)
+    assert d == {
+        'X-Amz-Algorithm': 'AWS4-HMAC-SHA256',
+        'X-Amz-Credential': 'AKIAIOSFODNN7EXAMPLE/20151229/us-east-1/s3/aws4_request',
+        'X-Amz-Date': '20151229T000000Z',
+        'X-Amz-Signature': '8afdbf4008c03f22c2cd3cdb72e4afbb1f6a588f3255ac628749a66d7f09699e',
+    }
 
 
 async def test_real_upload(real_aws: AWS):
@@ -185,7 +222,7 @@ async def test_bad_auth():
         with pytest.raises(RequestError) as exc_info:
             await s3.upload('foobar.txt', b'hello')
 
-        assert exc_info.value.args[0] == 'unexpected response from POST "https://foobar.s3.amazonaws.com/": 403'
+        assert exc_info.value.args[0] == 'unexpected response from POST "https://foobar.s3.amazonaws.com/": 400'
         assert str(exc_info.value).startswith(exc_info.value.args[0] + ', response:\n<?xml ')
 
         with pytest.raises(RequestError, match=r'POST "https://foobar.s3.amazonaws.com\?delete=1"'):

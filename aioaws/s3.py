@@ -1,6 +1,4 @@
 import base64
-import hashlib
-import hmac
 import json
 import mimetypes
 import re
@@ -182,23 +180,28 @@ class S3Client:
             ['content-length-range', size, size],
         ]
 
-        fields = {'Key': key, 'Content-Type': content_type, 'AWSAccessKeyId': self._config.aws_access_key}
+        content_disp_fields = {}
         if content_disp:
-            disp = {'Content-Disposition': f'attachment; filename="{filename}"'}
-            policy_conditions.append(disp)
-            fields.update(disp)
+            content_disp_fields = {'Content-Disposition': f'attachment; filename="{filename}"'}
+            policy_conditions.append(content_disp_fields)
+
+        now = utcnow()
+        policy_conditions += self._aws_client.upload_extra_conditions(now)
 
         policy = {
-            'expiration': f'{expires or utcnow() + timedelta(seconds=60):%Y-%m-%dT%H:%M:%SZ}',
+            'expiration': f'{expires or now + timedelta(seconds=60):%Y-%m-%dT%H:%M:%SZ}',
             'conditions': policy_conditions,
         }
-        b64_policy: bytes = base64.b64encode(json.dumps(policy).encode())
-        fields.update(Policy=b64_policy.decode(), Signature=self._signature(b64_policy))
-        return dict(url=f'https://{self._aws_client.host}/', fields=fields)
+        b64_policy = base64.b64encode(json.dumps(policy).encode()).decode()
 
-    def _signature(self, to_sign: bytes) -> str:
-        s = hmac.new(self._config.aws_secret_key.encode(), to_sign, hashlib.sha1).digest()
-        return base64.b64encode(s).decode()
+        fields = {
+            'Key': key,
+            'Content-Type': content_type,
+            **content_disp_fields,
+            'Policy': b64_policy,
+            **self._aws_client.signed_upload_fields(now, b64_policy),
+        }
+        return dict(url=f'https://{self._aws_client.host}/', fields=fields)
 
 
 def to_key(sf: Union[S3File, str]) -> str:

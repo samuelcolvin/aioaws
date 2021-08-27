@@ -6,6 +6,7 @@ from binascii import hexlify
 from datetime import datetime
 from functools import reduce
 from typing import TYPE_CHECKING, Any, Dict, Literal, Optional, Tuple
+from urllib.parse import quote as url_quote
 
 from httpx import URL, AsyncClient, Response
 
@@ -92,14 +93,8 @@ class AwsClient:
         )
         if r.status_code != 200:
             raise RequestError(r)
-        #     debug(r.status_code, r.url, dict(r.request.headers), r.history, r.content)
-        #
-        #     from xml.etree import ElementTree
-        #     xml_root = ElementTree.fromstring(r.content)
-        #     debug(
-        #         xml_root.find('StringToSign').text,
-        #         xml_root.find('CanonicalRequest').text,
-        #     )
+            # from ._utils import pretty_response
+            # pretty_response(r)
         return r
 
     def add_signed_download_params(self, method: Literal['GET', 'POST'], url: URL, expires: int = 86400) -> URL:
@@ -154,7 +149,7 @@ class AwsClient:
         signed_headers = ';'.join(header_keys)
         canonical_request_parts = (
             method,
-            url.path,
+            url_quote(url.path),
             url.query.decode(),
             ''.join(f'{k}:{headers[k]}\n' for k in header_keys),
             signed_headers,

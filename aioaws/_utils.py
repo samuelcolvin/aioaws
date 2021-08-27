@@ -2,11 +2,12 @@ import asyncio
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, Awaitable, Iterable, List, Optional
 
-__all__ = 'get_config_attr', 'to_unix_s', 'utcnow', 'ManyTasks'
+from httpx import Response
 
 if TYPE_CHECKING:
     from ._types import BaseConfigProtocol
 
+__all__ = 'get_config_attr', 'to_unix_s', 'utcnow', 'ManyTasks'
 
 EPOCH = datetime(1970, 1, 1)
 EPOCH_TZ = EPOCH.replace(tzinfo=timezone.utc)
@@ -52,3 +53,18 @@ class ManyTasks:
 
     async def finish(self) -> Iterable[Any]:
         return await asyncio.gather(*self._tasks)
+
+
+def pretty_response(r: Response) -> None:
+    from xml.etree import ElementTree
+
+    from devtools import debug
+
+    xml_root = ElementTree.fromstring(r.content)
+    debug(
+        status=r.status_code,
+        url=str(r.url),
+        headers=dict(r.request.headers),
+        history=r.history,
+        xml={el.tag: el.text for el in xml_root},
+    )

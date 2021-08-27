@@ -86,13 +86,12 @@ jobs:
           pip install -U pip setuptools wheel twine
           pip install .
 
-      - name: build
-        run: python setup.py sdist bdist_wheel
+      - name: set version
+        run: VERSION_PATH='aioaws/version.py' python <(curl -Ls https://git.io/JT3rm)
+
+      - run: python setup.py sdist bdist_wheel
 
       - run: twine check dist/*
-
-      - name: check tag
-        run: PACKAGE=aioaws python <(curl -Ls https://git.io/JvQsH)
 
       - name: upload to pypi
         run: twine upload dist/*

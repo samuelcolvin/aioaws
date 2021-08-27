@@ -7,15 +7,14 @@ import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from itertools import chain
-from math import ceil
 from typing import TYPE_CHECKING, Any, AsyncIterable, Dict, List, Optional, Union
 from urllib.parse import urlencode
 from xml.etree import ElementTree
 
-from httpx import AsyncClient
+from httpx import URL, AsyncClient
 from pydantic import BaseModel, validator
 
-from ._utils import ManyTasks, to_unix_s, utcnow
+from ._utils import ManyTasks, utcnow
 from .core import AwsClient
 
 if TYPE_CHECKING:
@@ -155,14 +154,11 @@ class S3Client:
         https://docs.aws.amazon.com/AmazonS3/latest/dev/RESTAuthentication.html#RESTAuthenticationQueryStringAuth
         """
         assert not path.startswith('/'), 'path should not start with /'
-        min_expires = to_unix_s(utcnow()) + max_age
-        expires = int(ceil(min_expires / expiry_rounding) * expiry_rounding)
-        to_sign = f'GET\n\n\n{expires}\n/{self._config.aws_s3_bucket}/{path}'
-        signature = self._signature(to_sign.encode())
-        args = {'AWSAccessKeyId': self._config.aws_access_key, 'Signature': signature, 'Expires': expires}
+        url = URL(f'https://{self._aws_client.host}/{path}')
+        args = self._aws_client.signed_download_params('GET', url, max_age)
         if version:
             args['v'] = version
-        return f'https://{self._aws_client.host}/{path}?{urlencode(args)}'
+        return f'{url}?{urlencode(args)}'
 
     def signed_upload_url(
         self,

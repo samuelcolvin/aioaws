@@ -55,7 +55,7 @@ class ManyTasks:
         return await asyncio.gather(*self._tasks)
 
 
-def pretty_response(r: Response) -> None:
+def pretty_response(r: Response) -> None:  # pragma: no cover
     from xml.etree import ElementTree
 
     from devtools import debug

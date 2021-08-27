@@ -154,7 +154,7 @@ class S3Client:
         url = URL(f'https://{self._aws_client.host}/{path}')
         url = self._aws_client.add_signed_download_params('GET', url, max_age)
         if version:
-            url.params.add('v', version)
+            url = url.copy_add_param('v', version)
         return str(url)
 
     def signed_upload_url(

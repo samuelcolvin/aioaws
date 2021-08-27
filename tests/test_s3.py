@@ -135,6 +135,8 @@ def test_aws4_download_signature(client: AsyncClient, mocker):
         '&X-Amz-Expires=86400&X-Amz-SignedHeaders=host'
         '&X-Amz-Signature=aeeed9bbccd4d02ee5c0109b86d86835f995330da4c265957d157751f604d404'
     )
+    url2 = s3.signed_download_url('test.txt', max_age=86400, version='foobar')
+    assert url2 == url + '&v=foobar'
 
 
 def test_aws4_upload_signature(client: AsyncClient, mocker):

@@ -217,12 +217,12 @@ async def test_real_many(real_aws: AWS):
 
 async def test_bad_auth():
     async with AsyncClient(timeout=30) as client:
-        s3 = S3Client(client, S3Config('BAD_access_key', 'BAD_secret_key', 'us-east-1', 'foobar'))
+        s3 = S3Client(client, S3Config('BAD_access_key', 'BAD_secret_key', 'us-west-2', 'foobar'))
 
         with pytest.raises(RequestError) as exc_info:
             await s3.upload('foobar.txt', b'hello')
 
-        assert exc_info.value.args[0] == 'unexpected response from POST "https://foobar.s3.amazonaws.com/": 400'
+        assert exc_info.value.args[0] == 'unexpected response from POST "https://foobar.s3.amazonaws.com/": 403'
         assert str(exc_info.value).startswith(exc_info.value.args[0] + ', response:\n<?xml ')
 
         with pytest.raises(RequestError, match=r'POST "https://foobar.s3.amazonaws.com\?delete=1"'):

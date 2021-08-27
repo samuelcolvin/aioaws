@@ -3,8 +3,10 @@ import hashlib
 import hmac
 import logging
 from binascii import hexlify
+from datetime import datetime
 from functools import reduce
-from typing import TYPE_CHECKING, Any, Dict, Literal, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Literal, Optional, Tuple
+from urllib.parse import quote as url_quote
 
 from httpx import URL, AsyncClient, Response
 
@@ -18,23 +20,7 @@ logger = logging.getLogger('aioaws.core')
 
 _AWS_AUTH_REQUEST = 'aws4_request'
 _CONTENT_TYPE = 'application/x-www-form-urlencoded'
-_CANONICAL_REQUEST = """\
-{method}
-{path}
-{query}
-{canonical_headers}
-{signed_headers}
-{payload_sha256_hash}"""
 _AUTH_ALGORITHM = 'AWS4-HMAC-SHA256'
-_CREDENTIAL_SCOPE = '{date_stamp}/{region}/{service}/{auth_request}'
-_STRING_TO_SIGN = """\
-{algorithm}
-{x_amz_date}
-{credential_scope}
-{canonical_request_hash}"""
-_AUTH_HEADER = (
-    '{algorithm} Credential={access_key}/{credential_scope},SignedHeaders={signed_headers},Signature={signature}'
-)
 
 
 class AwsClient:
@@ -77,6 +63,8 @@ class AwsClient:
         if r.status_code == expected_status:
             return r
         else:
+            # from ._utils import pretty_response
+            # pretty_response(r)
             raise RequestError(r)
 
     async def post(
@@ -106,16 +94,41 @@ class AwsClient:
             headers=self._auth_headers(method, url, data=data, content_type=content_type),
         )
         if r.status_code != 200:
+            # from ._utils import pretty_response
+            # pretty_response(r)
             raise RequestError(r)
-        #     debug(r.status_code, r.url, dict(r.request.headers), r.history, r.content)
-        #
-        #     from xml.etree import ElementTree
-        #     xml_root = ElementTree.fromstring(r.content)
-        #     debug(
-        #         xml_root.find('StringToSign').text,
-        #         xml_root.find('CanonicalRequest').text,
-        #     )
         return r
+
+    def add_signed_download_params(self, method: Literal['GET', 'POST'], url: URL, expires: int = 86400) -> URL:
+        assert expires >= 1, f'expires must be greater than or equal to 1, not {expires}'
+        assert expires <= 604800, f'expires must be less than or equal to 604800, not {expires}'
+        now = utcnow()
+        url = url.copy_merge_params(
+            {
+                'X-Amz-Algorithm': _AUTH_ALGORITHM,
+                'X-Amz-Credential': self._aws4_credential(now),
+                'X-Amz-Date': _aws4_x_amz_date(now),
+                'X-Amz-Expires': str(expires),
+                'X-Amz-SignedHeaders': 'host',
+            }
+        )
+        _, signature = self._aws4_signature(now, method, url, {'host': self.host}, 'UNSIGNED-PAYLOAD')
+        return url.copy_add_param('X-Amz-Signature', signature)
+
+    def upload_extra_conditions(self, dt: datetime) -> List[Dict[str, str]]:
+        return [
+            {'x-amz-credential': self._aws4_credential(dt)},
+            {'x-amz-algorithm': _AUTH_ALGORITHM},
+            {'x-amz-date': _aws4_x_amz_date(dt)},
+        ]
+
+    def signed_upload_fields(self, dt: datetime, string_to_sign: str) -> Dict[str, str]:
+        return {
+            'X-Amz-Algorithm': _AUTH_ALGORITHM,
+            'X-Amz-Credential': self._aws4_credential(dt),
+            'X-Amz-Date': _aws4_x_amz_date(dt),
+            'X-Amz-Signature': self._aws4_sign_string(string_to_sign, dt),
+        }
 
     def _auth_headers(
         self,
@@ -125,9 +138,7 @@ class AwsClient:
         data: Optional[bytes] = None,
         content_type: Optional[str] = None,
     ) -> Dict[str, str]:
-        n = utcnow()
-        x_amz_date = n.strftime('%Y%m%dT%H%M%SZ')
-        date_stamp = n.strftime('%Y%m%d')
+        now = utcnow()
         data = data or b''
         content_type = content_type or _CONTENT_TYPE
 
@@ -136,47 +147,69 @@ class AwsClient:
             'content-md5': base64.b64encode(hashlib.md5(data).digest()).decode(),
             'content-type': content_type,
             'host': self.host,
-            'x-amz-date': x_amz_date,
+            'x-amz-date': _aws4_x_amz_date(now),
         }
 
         payload_sha256_hash = hashlib.sha256(data).hexdigest()
-        ctx = dict(
-            method=method,
-            path=url.path,
-            query=url.query.decode(),
-            access_key=self.aws_access_key,
-            algorithm=_AUTH_ALGORITHM,
-            x_amz_date=x_amz_date,
-            auth_request=_AWS_AUTH_REQUEST,
-            date_stamp=date_stamp,
-            payload_sha256_hash=payload_sha256_hash,
-            region=self.region,
-            service=self.service,
-            signed_headers=';'.join(headers),
+        signed_headers, signature = self._aws4_signature(now, method, url, headers, payload_sha256_hash)
+        credential = self._aws4_credential(now)
+        authorization_header = (
+            f'{_AUTH_ALGORITHM} Credential={credential},SignedHeaders={signed_headers},Signature={signature}'
         )
-        ctx.update(credential_scope=_CREDENTIAL_SCOPE.format(**ctx))
-        canonical_headers = ''.join(f'{k}:{v}\n' for k, v in headers.items())
-
-        canonical_request = _CANONICAL_REQUEST.format(canonical_headers=canonical_headers, **ctx).encode()
-
-        s2s = _STRING_TO_SIGN.format(canonical_request_hash=hashlib.sha256(canonical_request).hexdigest(), **ctx)
-
-        key_parts = (
-            b'AWS4' + self.aws_secret_key.encode(),
-            date_stamp,
-            self.region,
-            self.service,
-            _AWS_AUTH_REQUEST,
-            s2s,
-        )
-        signature: bytes = reduce(_reduce_signature, key_parts)  # type: ignore
-
-        authorization_header = _AUTH_HEADER.format(signature=hexlify(signature).decode(), **ctx)
         headers.update({'authorization': authorization_header, 'x-amz-content-sha256': payload_sha256_hash})
         return headers
 
+    def _aws4_signature(
+        self, dt: datetime, method: Literal['GET', 'POST'], url: URL, headers: Dict[str, str], payload_hash: str
+    ) -> Tuple[str, str]:
+        header_keys = sorted(headers)
+        signed_headers = ';'.join(header_keys)
+        canonical_request_parts = (
+            method,
+            url_quote(url.path),
+            url.query.decode(),
+            ''.join(f'{k}:{headers[k]}\n' for k in header_keys),
+            signed_headers,
+            payload_hash,
+        )
+        canonical_request = '\n'.join(canonical_request_parts)
+        string_to_sign_parts = (
+            _AUTH_ALGORITHM,
+            _aws4_x_amz_date(dt),
+            self._aws4_scope(dt),
+            hashlib.sha256(canonical_request.encode()).hexdigest(),
+        )
+        string_to_sign = '\n'.join(string_to_sign_parts)
+        return signed_headers, self._aws4_sign_string(string_to_sign, dt)
 
-def _reduce_signature(key: bytes, msg: str) -> bytes:
+    def _aws4_sign_string(self, string_to_sign: str, dt: datetime) -> str:
+        key_parts = (
+            b'AWS4' + self.aws_secret_key.encode(),
+            _aws4_date_stamp(dt),
+            self.region,
+            self.service,
+            _AWS_AUTH_REQUEST,
+            string_to_sign,
+        )
+        signature_bytes: bytes = reduce(_aws4_reduce_signature, key_parts)  # type: ignore
+        return hexlify(signature_bytes).decode()
+
+    def _aws4_scope(self, dt: datetime) -> str:
+        return f'{_aws4_date_stamp(dt)}/{self.region}/{self.service}/{_AWS_AUTH_REQUEST}'
+
+    def _aws4_credential(self, dt: datetime) -> str:
+        return f'{self.aws_access_key}/{self._aws4_scope(dt)}'
+
+
+def _aws4_date_stamp(dt: datetime) -> str:
+    return dt.strftime('%Y%m%d')
+
+
+def _aws4_x_amz_date(dt: datetime) -> str:
+    return dt.strftime('%Y%m%dT%H%M%SZ')
+
+
+def _aws4_reduce_signature(key: bytes, msg: str) -> bytes:
     return hmac.new(key, msg.encode(), hashlib.sha256).digest()
 
 

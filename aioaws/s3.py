@@ -1,21 +1,17 @@
 import base64
-import hashlib
-import hmac
 import json
 import mimetypes
 import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from itertools import chain
-from math import ceil
 from typing import TYPE_CHECKING, Any, AsyncIterable, Dict, List, Optional, Union
-from urllib.parse import urlencode
 from xml.etree import ElementTree
 
-from httpx import AsyncClient
+from httpx import URL, AsyncClient
 from pydantic import BaseModel, validator
 
-from ._utils import ManyTasks, to_unix_s, utcnow
+from ._utils import ManyTasks, utcnow
 from .core import AwsClient
 
 if TYPE_CHECKING:
@@ -155,14 +151,11 @@ class S3Client:
         https://docs.aws.amazon.com/AmazonS3/latest/dev/RESTAuthentication.html#RESTAuthenticationQueryStringAuth
         """
         assert not path.startswith('/'), 'path should not start with /'
-        min_expires = to_unix_s(utcnow()) + max_age
-        expires = int(ceil(min_expires / expiry_rounding) * expiry_rounding)
-        to_sign = f'GET\n\n\n{expires}\n/{self._config.aws_s3_bucket}/{path}'
-        signature = self._signature(to_sign.encode())
-        args = {'AWSAccessKeyId': self._config.aws_access_key, 'Signature': signature, 'Expires': expires}
+        url = URL(f'https://{self._aws_client.host}/{path}')
+        url = self._aws_client.add_signed_download_params('GET', url, max_age)
         if version:
-            args['v'] = version
-        return f'https://{self._aws_client.host}/{path}?{urlencode(args)}'
+            url = url.copy_add_param('v', version)
+        return str(url)
 
     def signed_upload_url(
         self,
@@ -187,23 +180,28 @@ class S3Client:
             ['content-length-range', size, size],
         ]
 
-        fields = {'Key': key, 'Content-Type': content_type, 'AWSAccessKeyId': self._config.aws_access_key}
+        content_disp_fields = {}
         if content_disp:
-            disp = {'Content-Disposition': f'attachment; filename="{filename}"'}
-            policy_conditions.append(disp)
-            fields.update(disp)
+            content_disp_fields = {'Content-Disposition': f'attachment; filename="{filename}"'}
+            policy_conditions.append(content_disp_fields)
+
+        now = utcnow()
+        policy_conditions += self._aws_client.upload_extra_conditions(now)
 
         policy = {
-            'expiration': f'{expires or utcnow() + timedelta(seconds=60):%Y-%m-%dT%H:%M:%SZ}',
+            'expiration': f'{expires or now + timedelta(seconds=60):%Y-%m-%dT%H:%M:%SZ}',
             'conditions': policy_conditions,
         }
-        b64_policy: bytes = base64.b64encode(json.dumps(policy).encode())
-        fields.update(Policy=b64_policy.decode(), Signature=self._signature(b64_policy))
-        return dict(url=f'https://{self._aws_client.host}/', fields=fields)
+        b64_policy = base64.b64encode(json.dumps(policy).encode()).decode()
 
-    def _signature(self, to_sign: bytes) -> str:
-        s = hmac.new(self._config.aws_secret_key.encode(), to_sign, hashlib.sha1).digest()
-        return base64.b64encode(s).decode()
+        fields = {
+            'Key': key,
+            'Content-Type': content_type,
+            **content_disp_fields,
+            'Policy': b64_policy,
+            **self._aws_client.signed_upload_fields(now, b64_policy),
+        }
+        return dict(url=f'https://{self._aws_client.host}/', fields=fields)
 
 
 def to_key(sf: Union[S3File, str]) -> str:

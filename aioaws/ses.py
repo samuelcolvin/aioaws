@@ -23,7 +23,12 @@ from .core import AwsClient
 if TYPE_CHECKING:
     from ._types import BaseConfigProtocol
 
-__all__ = 'SesAttachment', 'SesClient', 'SesConfig', 'SesRecipient', 'SesWebhookInfo'
+try:
+    import dkim
+except ImportError:
+    dkim = None
+
+__all__ = 'SesAttachment', 'SesClient', 'SesConfig', 'SesRecipient', 'DkimSetup', 'SesWebhookInfo'
 logger = logging.getLogger('aioaws.ses')
 max_total_size = 10 * 1024 * 1024
 
@@ -58,6 +63,13 @@ class SesRecipient:
         return formataddr((name, self.email))
 
 
+@dataclass
+class DkimSetup:
+    selector: str
+    domain: str
+    private_key: str
+
+
 class SesClient:
     __slots__ = '_config', '_aws_client'
 
@@ -80,6 +92,7 @@ class SesClient:
         configuration_set: Optional[str] = None,
         message_tags: Optional[Dict[str, Any]] = None,
         smtp_headers: Optional[Dict[str, str]] = None,
+        dkim_setup: Optional[DkimSetup] = None,
     ) -> str:
 
         email_msg = EmailMessage()
@@ -124,8 +137,9 @@ class SesClient:
                 if total_size > max_total_size:
                     raise ValueError(f'attachment size {total_size} greater than 10MB')
                 email_msg.attach(attachment_msg)
-
-        return await self.send_raw_email(e_from_recipient.email, email_msg, to=to_r, cc=cc_r, bcc=bcc_r)
+        return await self.send_raw_email(
+            e_from_recipient.email, email_msg, to=to_r, cc=cc_r, bcc=bcc_r, dkim_setup=dkim_setup
+        )
 
     async def send_raw_email(
         self,
@@ -135,14 +149,33 @@ class SesClient:
         to: List[SesRecipient],
         cc: List[SesRecipient],
         bcc: List[SesRecipient],
+        dkim_setup: Optional[DkimSetup],
     ) -> str:
         if not any((to, cc, bcc)):
             raise TypeError('either "to", "cc", or "bcc" must be provided when sending emails')
 
+        email_bytes = email_msg.as_bytes()
+
+        if dkim_setup:
+            if dkim is None:  # pragma: no cover
+                raise ImportError('dkim not installed, run `pip install dkimpy`')
+
+            # https://docs.aws.amazon.com/ses/latest/DeveloperGuide/send-email-authentication-dkim-manual.html
+            # https://russell.ballestrini.net/quickstart-to-dkim-sign-email-with-python/
+            headers = [b'Subject', b'From', b'To', b'Cc', b'Bcc', b'MIME-Version', b'Content-Type']
+            sig = dkim.sign(
+                message=email_bytes,
+                selector=dkim_setup.selector.encode(),
+                domain=dkim_setup.domain.encode(),
+                privkey=dkim_setup.private_key.encode(),
+                include_headers=headers,
+            )
+            email_bytes = sig + email_bytes
+
         form_data = {
             'Action': 'SendRawEmail',
             'Source': e_from,
-            'RawMessage.Data': base64.b64encode(email_msg.as_string().encode()),
+            'RawMessage.Data': base64.b64encode(email_bytes),
         }
 
         def add_addresses(name: str, addresses: Iterable[str]) -> None:

@@ -43,7 +43,8 @@ class AwsClient:
                 # assumes the bucket is a domain and is already as a CNAME record for S3
                 self.host = bucket
             else:
-                self.host = f'{bucket}.s3.amazonaws.com'
+                # see https://docs.aws.amazon.com/AmazonS3/latest/userguide/access-bucket-intro.html
+                self.host = f'{bucket}.s3.{self.region}.amazonaws.com'
 
         self.endpoint = f'https://{self.host}'
 

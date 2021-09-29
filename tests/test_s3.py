@@ -47,7 +47,7 @@ def test_upload_url(mocker):
 
 def test_upload_url_no_content_disp(mocker):
     mocker.patch('aioaws.s3.utcnow', return_value=datetime(2032, 1, 1))
-    s3 = S3Client('-', S3Config('testing', 'testing_access_key', 'testing_secret_key', 'testing-region'))
+    s3 = S3Client('-', S3Config('testing-access-key', 'testing-secret-key', 'testing-region', 'testing-bucket'))
     d = s3.signed_upload_url(
         path='testing/',
         filename='test.png',
@@ -57,21 +57,21 @@ def test_upload_url_no_content_disp(mocker):
         expires=datetime(2032, 1, 1),
     )
     assert d == {
-        'url': 'https://testing-region.s3.testing_secret_key.amazonaws.com/',
+        'url': 'https://testing-bucket.s3.testing-region.amazonaws.com/',
         'fields': {
             'Key': 'testing/test.png',
             'Content-Type': 'image/png',
             'Policy': (
-                'eyJleHBpcmF0aW9uIjogIjIwMzItMDEtMDFUMDA6MDA6MDBaIiwgImNvbmRpdGlvbnMiOiBbeyJidWNrZXQiOiAidGVzdGluZy1yZ'
-                'Wdpb24ifSwgeyJrZXkiOiAidGVzdGluZy90ZXN0LnBuZyJ9LCB7ImNvbnRlbnQtdHlwZSI6ICJpbWFnZS9wbmcifSwgWyJjb250ZW'
-                '50LWxlbmd0aC1yYW5nZSIsIDEyMywgMTIzXSwgeyJ4LWFtei1jcmVkZW50aWFsIjogInRlc3RpbmcvMjAzMjAxMDEvdGVzdGluZ19'
-                'zZWNyZXRfa2V5L3MzL2F3czRfcmVxdWVzdCJ9LCB7IngtYW16LWFsZ29yaXRobSI6ICJBV1M0LUhNQUMtU0hBMjU2In0sIHsieC1h'
-                'bXotZGF0ZSI6ICIyMDMyMDEwMVQwMDAwMDBaIn1dfQ=='
+                'eyJleHBpcmF0aW9uIjogIjIwMzItMDEtMDFUMDA6MDA6MDBaIiwgImNvbmRpdGlvbnMiOiBbeyJidWNrZXQiOiAidGVzdGluZy1id'
+                'WNrZXQifSwgeyJrZXkiOiAidGVzdGluZy90ZXN0LnBuZyJ9LCB7ImNvbnRlbnQtdHlwZSI6ICJpbWFnZS9wbmcifSwgWyJjb250ZW'
+                '50LWxlbmd0aC1yYW5nZSIsIDEyMywgMTIzXSwgeyJ4LWFtei1jcmVkZW50aWFsIjogInRlc3RpbmctYWNjZXNzLWtleS8yMDMyMDE'
+                'wMS90ZXN0aW5nLXJlZ2lvbi9zMy9hd3M0X3JlcXVlc3QifSwgeyJ4LWFtei1hbGdvcml0aG0iOiAiQVdTNC1ITUFDLVNIQTI1NiJ9'
+                'LCB7IngtYW16LWRhdGUiOiAiMjAzMjAxMDFUMDAwMDAwWiJ9XX0='
             ),
             'X-Amz-Algorithm': 'AWS4-HMAC-SHA256',
-            'X-Amz-Credential': 'testing/20320101/testing_secret_key/s3/aws4_request',
+            'X-Amz-Credential': 'testing-access-key/20320101/testing-region/s3/aws4_request',
             'X-Amz-Date': '20320101T000000Z',
-            'X-Amz-Signature': 'd574d7d6e0547e67cd2535516553ac98d77bd5ae40aba48dd2c336eba86c474f',
+            'X-Amz-Signature': 'd1a0cd63d314f846291b9046ef0c253923ebff4af52bb3097558373ebf76bdb2',
         },
     }
 

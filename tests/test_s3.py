@@ -47,7 +47,7 @@ def test_upload_url(mocker):
 
 def test_upload_url_no_content_disp(mocker):
     mocker.patch('aioaws.s3.utcnow', return_value=datetime(2032, 1, 1))
-    s3 = S3Client('-', S3Config('testing', 'testing', 'testing', 'testing'))
+    s3 = S3Client('-', S3Config('testing', 'testing_access_key', 'testing_secret_key', 'testing-region'))
     d = s3.signed_upload_url(
         path='testing/',
         filename='test.png',
@@ -57,21 +57,21 @@ def test_upload_url_no_content_disp(mocker):
         expires=datetime(2032, 1, 1),
     )
     assert d == {
-        'url': 'https://testing.s3.amazonaws.com/',
+        'url': 'https://testing-region.s3.testing_secret_key.amazonaws.com/',
         'fields': {
             'Key': 'testing/test.png',
             'Content-Type': 'image/png',
             'Policy': (
-                'eyJleHBpcmF0aW9uIjogIjIwMzItMDEtMDFUMDA6MDA6MDBaIiwgImNvbmRpdGlvbnMiOiBbeyJidWNrZXQiOiAidGVzdGluZyJ9L'
-                'CB7ImtleSI6ICJ0ZXN0aW5nL3Rlc3QucG5nIn0sIHsiY29udGVudC10eXBlIjogImltYWdlL3BuZyJ9LCBbImNvbnRlbnQtbGVuZ3'
-                'RoLXJhbmdlIiwgMTIzLCAxMjNdLCB7IngtYW16LWNyZWRlbnRpYWwiOiAidGVzdGluZy8yMDMyMDEwMS90ZXN0aW5nL3MzL2F3czR'
-                'fcmVxdWVzdCJ9LCB7IngtYW16LWFsZ29yaXRobSI6ICJBV1M0LUhNQUMtU0hBMjU2In0sIHsieC1hbXotZGF0ZSI6ICIyMDMyMDEw'
-                'MVQwMDAwMDBaIn1dfQ=='
+                'eyJleHBpcmF0aW9uIjogIjIwMzItMDEtMDFUMDA6MDA6MDBaIiwgImNvbmRpdGlvbnMiOiBbeyJidWNrZXQiOiAidGVzdGluZy1yZ'
+                'Wdpb24ifSwgeyJrZXkiOiAidGVzdGluZy90ZXN0LnBuZyJ9LCB7ImNvbnRlbnQtdHlwZSI6ICJpbWFnZS9wbmcifSwgWyJjb250ZW'
+                '50LWxlbmd0aC1yYW5nZSIsIDEyMywgMTIzXSwgeyJ4LWFtei1jcmVkZW50aWFsIjogInRlc3RpbmcvMjAzMjAxMDEvdGVzdGluZ19'
+                'zZWNyZXRfa2V5L3MzL2F3czRfcmVxdWVzdCJ9LCB7IngtYW16LWFsZ29yaXRobSI6ICJBV1M0LUhNQUMtU0hBMjU2In0sIHsieC1h'
+                'bXotZGF0ZSI6ICIyMDMyMDEwMVQwMDAwMDBaIn1dfQ=='
             ),
             'X-Amz-Algorithm': 'AWS4-HMAC-SHA256',
-            'X-Amz-Credential': 'testing/20320101/testing/s3/aws4_request',
+            'X-Amz-Credential': 'testing/20320101/testing_secret_key/s3/aws4_request',
             'X-Amz-Date': '20320101T000000Z',
-            'X-Amz-Signature': '1e34d3e5a850d48ea970ae43c745eaf60d3100607dceab1b4bfc0cc63d8641c2',
+            'X-Amz-Signature': 'd574d7d6e0547e67cd2535516553ac98d77bd5ae40aba48dd2c336eba86c474f',
         },
     }
 
@@ -128,12 +128,12 @@ def test_aws4_download_signature(client: AsyncClient, mocker):
     s3 = S3Client(client, S3Config(access_key, secret_key, 'us-east-1', 'examplebucket'))
     url = s3.signed_download_url('test.txt', max_age=86400)
     assert url == (
-        'https://examplebucket.s3.amazonaws.com/test.txt'
+        'https://examplebucket.s3.us-east-1.amazonaws.com/test.txt'
         '?X-Amz-Algorithm=AWS4-HMAC-SHA256'
         '&X-Amz-Credential=AKIAIOSFODNN7EXAMPLE%2F20130524%2Fus-east-1%2Fs3%2Faws4_request'
         '&X-Amz-Date=20130524T000000Z'
         '&X-Amz-Expires=86400&X-Amz-SignedHeaders=host'
-        '&X-Amz-Signature=aeeed9bbccd4d02ee5c0109b86d86835f995330da4c265957d157751f604d404'
+        '&X-Amz-Signature=762f4fcbacec730d460b0e337f554e569e4fe98643baefad7af1276fe3084e7f'
     )
     url2 = s3.signed_download_url('test.txt', max_age=86400, version='foobar')
     assert url2 == url + '&v=foobar'
@@ -224,8 +224,9 @@ async def test_bad_auth():
         with pytest.raises(RequestError) as exc_info:
             await s3.upload('foobar.txt', b'hello')
 
-        assert exc_info.value.args[0] == 'unexpected response from POST "https://foobar.s3.amazonaws.com/": 403'
+        msg = exc_info.value.args[0]
+        assert msg == 'unexpected response from POST "https://foobar.s3.us-west-2.amazonaws.com/": 403'
         assert str(exc_info.value).startswith(exc_info.value.args[0] + ', response:\n<?xml ')
 
-        with pytest.raises(RequestError, match=r'POST "https://foobar.s3.amazonaws.com\?delete=1"'):
+        with pytest.raises(RequestError, match=r'POST "https://foobar.s3.us-west-2.amazonaws.com\?delete=1"'):
             await s3.delete('foobar.txt')

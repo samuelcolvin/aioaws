@@ -106,3 +106,21 @@ def _fix_real_aws():
         return AWS(access_key, secret_key)
     else:
         pytest.skip('requires TEST_AWS_ACCESS_KEY & TEST_AWS_SECRET_KEY env var')
+
+
+@pytest.fixture(name='real_aws_s3_bucket_name')
+def _fix_real_aws_s3_bucket_name():
+    """Configure AWS S3 bucket name for testing.
+
+    A configurable S3 bucket name enables contributors to run tests on their forks
+    and in their AWS accounts, by setting `${{ secrets.TEST_AWS_S3_BUCKET_NAME }}`
+    for GitHub Actions. Defaults to `aioaws-testing`.
+
+    The function is written with an if expression instead of using `os.getenv` with a
+    default value (`os.getenv('TEST_AWS_S3_BUCKET_NAME', 'aioaws-testing')`) because
+    of how the environment variable value is passed in from GitHub Actions. If
+    `${{ secrets.TEST_AWS_S3_BUCKET_NAME }}` is not set, `TEST_AWS_S3_BUCKET_NAME`
+    will be an empty string, and `os.getenv('TEST_AWS_S3_BUCKET_NAME', 'aioaws-testing')`
+    will return an empty string.
+    """
+    return value if (value := os.getenv('TEST_AWS_S3_BUCKET_NAME')) else 'aioaws-testing'

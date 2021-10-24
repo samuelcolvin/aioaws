@@ -124,3 +124,14 @@ def _fix_real_aws_s3_bucket_name():
     will return an empty string.
     """
     return value if (value := os.getenv('TEST_AWS_S3_BUCKET_NAME')) else 'aioaws-testing'
+
+
+@pytest.fixture(name='real_aws_ses_address')
+def _fix_real_aws_ses_address():
+    """Configure AWS SES email address for testing.
+
+    As with the S3 bucket name, enabling configuration of the email address allows
+    contributors to run tests on their forks and in their AWS accounts, by setting
+    `${{ secrets.TEST_AWS_SES_ADDRESS }}` on GitHub. Defaults to `testing@scolvin.com`.
+    """
+    return value if (value := os.getenv('TEST_AWS_SES_ADDRESS')) else 'testing@scolvin.com'

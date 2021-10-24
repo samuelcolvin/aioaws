@@ -358,12 +358,12 @@ async def test_webhook_subscribe(client: AsyncClient, aws: DummyServer, mocker):
     assert aws.log == ['GET /sns/certs/ > 200', 'GET /status/200/?Action=1234 > 200']
 
 
-async def test_real_send(real_aws: AWS):
+async def test_real_send(real_aws: AWS, real_aws_ses_address: str):
     async with AsyncClient() as client:
         ses = SesClient(client, SesConfig(real_aws.access_key, real_aws.secret_key, 'eu-west-1'))
 
         message_id = await ses.send_email(
-            'testing@scolvin.com',
+            real_aws_ses_address,
             'test email',
             [SesRecipient('success@simulator.amazonses.com', 'Test', 'Person')],
             'this is a test email',

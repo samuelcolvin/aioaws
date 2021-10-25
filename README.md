@@ -184,10 +184,55 @@ async def ses_webhook(request: Request):
     except SnsWebhookError as e:
         debug(message=e.message, details=e.details, headers=e.headers)
         raise ...
-    
+
     debug(webhook_info)
     ...
 ```
 
 See [here](https://github.com/samuelcolvin/aioaws/blob/master/aioaws/ses.py#L196-L204)
 for more information about what's provided in a `SesWebhookInfo`.
+
+## AWS session token support
+
+### Description
+
+**aioaws** has basic session token support. Session tokens are used when AWS resources obtain temporary security credentials.
+
+The authorization flow for temporary security credentials commonly works like this:
+
+- [IAM roles](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_terms-and-concepts.html), such as [service-linked roles](https://docs.aws.amazon.com/IAM/latest/UserGuide/using-service-linked-roles.html) or [Lambda execution roles](https://docs.aws.amazon.com/lambda/latest/dg/lambda-intro-execution-role.html), are set up and linked to infrastructure resources. These roles can have two kinds of IAM policies attached: [resource-based and identity-based policies](https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies_identity-vs-resource.html).
+  - _Identity-based policies_ define interactions with other resources on AWS.
+  - A _resource-based policy_ called a "role trust policy" defines how the role can be assumed.
+- The AWS runtime (Fargate, Lambda, etc) requests authorization to use the role by calling the [STS `AssumeRole` API](https://docs.aws.amazon.com/STS/latest/APIReference/API_AssumeRole.html).
+- If the requesting entity has permissions to assume the role, STS responds with [temporary security credentials](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp.html) that have permissions based on the identity-based policies associated with the IAM role.
+- The AWS runtime stores the temporary security credentials, typically by setting environment variables:
+  - `AWS_ACCESS_KEY_ID`
+  - `AWS_SECRET_ACCESS_KEY`
+  - `AWS_SESSION_TOKEN`
+- [AWS API calls with temporary credentials](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp_use-resources.html) must include the session token.
+- The AWS runtime will typically rotate the temporary security credentials before they expire.
+
+### Usage
+
+`AWS_SESSION_TOKEN` can be added with the `S3Config.aws_session_token` attribute.
+
+```py
+S3Config('<access key>', '<secret key>', '<region>', 'my_bucket_name.com', os.getenv('AWS_SESSION_TOKEN', ''))
+```
+
+### Session token expiration
+
+aioaws clients do not automatically rotate temporary credentials. Developers are responsible for updating
+client attributes or instantiating new clients when temporary credentials expire.
+
+Token expiration should be taken into account when generating S3 presigned URLs. As explained in the
+[docs](https://docs.aws.amazon.com/AmazonS3/latest/userguide/ShareObjectPreSignedURL.html), "If you created a presigned
+URL using a temporary token, then the URL expires when the token expires, even if the URL was created with a later
+expiration time."
+
+### Other credential sources
+
+There are several other ways to source credentials (see the
+[AWS IAM docs](https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_aws-services-that-work-with-iam.html),
+[AWS CLI docs](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html), and
+[Boto3 docs](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/credentials.html)). This project only handles AWS access keys and session tokens.

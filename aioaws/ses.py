@@ -3,7 +3,7 @@ import json
 import logging
 import mimetypes
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from email.encoders import encode_base64
 from email.message import EmailMessage
@@ -31,8 +31,9 @@ max_total_size = 10 * 1024 * 1024
 @dataclass
 class SesConfig:
     aws_access_key: str
-    aws_secret_key: str
+    aws_secret_key: str = field(repr=False)
     aws_region: str
+    aws_session_token: str = field(repr=False, default='')
 
 
 @dataclass

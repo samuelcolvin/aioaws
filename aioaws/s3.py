@@ -2,7 +2,7 @@ import base64
 import json
 import mimetypes
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from itertools import chain
 from typing import TYPE_CHECKING, Any, AsyncIterable, Dict, List, Optional, Union
@@ -29,9 +29,10 @@ xmlns_re = re.compile(f' xmlns="{re.escape(xmlns)}"'.encode())
 @dataclass
 class S3Config:
     aws_access_key: str
-    aws_secret_key: str
+    aws_secret_key: str = field(repr=False)
     aws_region: str
     aws_s3_bucket: str
+    aws_session_token: str = field(repr=False, default='')
 
 
 class S3File(BaseModel):

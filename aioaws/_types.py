@@ -12,3 +12,4 @@ class S3ConfigProtocol(Protocol):
     aws_secret_key: str
     aws_region: str
     aws_s3_bucket: str
+    aws_session_token: str

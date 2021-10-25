@@ -32,6 +32,7 @@ class AwsClient:
         self.client = client
         self.aws_access_key = get_config_attr(config, 'aws_access_key')
         self.aws_secret_key = get_config_attr(config, 'aws_secret_key')
+        self.aws_session_token = getattr(config, 'aws_session_token') if hasattr(config, 'aws_session_token') else ''
         self.service = service
         self.region = get_config_attr(config, 'aws_region')
         if self.service == 'ses':
@@ -104,32 +105,39 @@ class AwsClient:
         assert expires >= 1, f'expires must be greater than or equal to 1, not {expires}'
         assert expires <= 604800, f'expires must be less than or equal to 604800, not {expires}'
         now = utcnow()
-        url = url.copy_merge_params(
-            {
-                'X-Amz-Algorithm': _AUTH_ALGORITHM,
-                'X-Amz-Credential': self._aws4_credential(now),
-                'X-Amz-Date': _aws4_x_amz_date(now),
-                'X-Amz-Expires': str(expires),
-                'X-Amz-SignedHeaders': 'host',
-            }
-        )
+        params = {
+            'X-Amz-Algorithm': _AUTH_ALGORITHM,
+            'X-Amz-Credential': self._aws4_credential(now),
+            'X-Amz-Date': _aws4_x_amz_date(now),
+            'X-Amz-Expires': str(expires),
+        }
+        if self.aws_session_token:
+            params.update({'X-Amz-Security-Token': self.aws_session_token})
+        params.update({'X-Amz-SignedHeaders': 'host'})
+        url = url.copy_merge_params(params)
         _, signature = self._aws4_signature(now, method, url, {'host': self.host}, 'UNSIGNED-PAYLOAD')
         return url.copy_add_param('X-Amz-Signature', signature)
 
     def upload_extra_conditions(self, dt: datetime) -> List[Dict[str, str]]:
-        return [
+        conditions = [
             {'x-amz-credential': self._aws4_credential(dt)},
             {'x-amz-algorithm': _AUTH_ALGORITHM},
             {'x-amz-date': _aws4_x_amz_date(dt)},
         ]
+        if self.aws_session_token:
+            conditions.append({'x-amz-security-token': self.aws_session_token})
+        return conditions
 
     def signed_upload_fields(self, dt: datetime, string_to_sign: str) -> Dict[str, str]:
-        return {
+        fields = {
             'X-Amz-Algorithm': _AUTH_ALGORITHM,
             'X-Amz-Credential': self._aws4_credential(dt),
             'X-Amz-Date': _aws4_x_amz_date(dt),
-            'X-Amz-Signature': self._aws4_sign_string(string_to_sign, dt),
         }
+        if self.aws_session_token:
+            fields.update({'X-Amz-Security-Token': self.aws_session_token})
+        fields.update({'X-Amz-Signature': self._aws4_sign_string(string_to_sign, dt)})
+        return fields
 
     def _auth_headers(
         self,
@@ -150,7 +158,8 @@ class AwsClient:
             'host': self.host,
             'x-amz-date': _aws4_x_amz_date(now),
         }
-
+        if self.aws_session_token:
+            headers.update({'x-amz-security-token': self.aws_session_token})
         payload_sha256_hash = hashlib.sha256(data).hexdigest()
         signed_headers, signature = self._aws4_signature(now, method, url, headers, payload_sha256_hash)
         credential = self._aws4_credential(now)

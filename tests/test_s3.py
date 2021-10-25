@@ -168,7 +168,12 @@ def test_aws4_upload_signature(client: AsyncClient, mocker):
 
 async def test_real_upload(real_aws: AWS, real_aws_s3_bucket_name: str):
     async with AsyncClient(timeout=30) as client:
-        s3 = S3Client(client, S3Config(real_aws.access_key, real_aws.secret_key, 'us-east-1', real_aws_s3_bucket_name))
+        s3 = S3Client(
+            client,
+            S3Config(
+                real_aws.access_key, real_aws.secret_key, 'us-east-1', real_aws_s3_bucket_name, real_aws.session_token
+            ),
+        )
 
         path = f'{run_prefix}/testing/test.txt'
         await s3.upload(path, b'this is a test')
@@ -191,7 +196,12 @@ async def test_real_upload(real_aws: AWS, real_aws_s3_bucket_name: str):
 
 async def test_real_download_link(real_aws: AWS, real_aws_s3_bucket_name: str):
     async with AsyncClient(timeout=30) as client:
-        s3 = S3Client(client, S3Config(real_aws.access_key, real_aws.secret_key, 'us-east-1', real_aws_s3_bucket_name))
+        s3 = S3Client(
+            client,
+            S3Config(
+                real_aws.access_key, real_aws.secret_key, 'us-east-1', real_aws_s3_bucket_name, real_aws.session_token
+            ),
+        )
 
         await s3.upload(f'{run_prefix}/foobar.txt', b'hello', content_type='text/html')
 
@@ -208,7 +218,12 @@ async def test_real_download_link(real_aws: AWS, real_aws_s3_bucket_name: str):
 
 async def test_real_many(real_aws: AWS, real_aws_s3_bucket_name: str):
     async with AsyncClient(timeout=30) as client:
-        s3 = S3Client(client, S3Config(real_aws.access_key, real_aws.secret_key, 'us-east-1', real_aws_s3_bucket_name))
+        s3 = S3Client(
+            client,
+            S3Config(
+                real_aws.access_key, real_aws.secret_key, 'us-east-1', real_aws_s3_bucket_name, real_aws.session_token
+            ),
+        )
 
         # upload many files
         await asyncio.gather(*[s3.upload(f'{run_prefix}/f_{i}.txt', f'file {i}'.encode()) for i in range(51)])

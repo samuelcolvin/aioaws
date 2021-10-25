@@ -360,7 +360,9 @@ async def test_webhook_subscribe(client: AsyncClient, aws: DummyServer, mocker):
 
 async def test_real_send(real_aws: AWS, real_aws_ses_address: str):
     async with AsyncClient() as client:
-        ses = SesClient(client, SesConfig(real_aws.access_key, real_aws.secret_key, 'eu-west-1'))
+        ses = SesClient(
+            client, SesConfig(real_aws.access_key, real_aws.secret_key, 'eu-west-1', real_aws.session_token)
+        )
 
         message_id = await ses.send_email(
             real_aws_ses_address,

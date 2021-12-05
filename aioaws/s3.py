@@ -11,7 +11,7 @@ from xml.etree import ElementTree
 from httpx import URL, AsyncClient
 from pydantic import BaseModel, validator
 
-from ._utils import ManyTasks, utcnow
+from ._utils import ManyTasks, get_config_attr, utcnow
 from .core import AwsClient
 
 if TYPE_CHECKING:
@@ -173,8 +173,10 @@ class S3Client:
         assert path == '' or path.endswith('/'), 'path must be empty or end with "/"'
         assert not path.startswith('/'), 'path must not start with "/"'
         key = path + filename
+        bucket = get_config_attr(self._config, 'aws_s3_bucket')
+        bucket_name = bucket.split(sep='.')[0] if '.' in bucket else bucket
         policy_conditions = [
-            {'bucket': self._config.aws_s3_bucket},
+            {'bucket': bucket_name},
             {'key': key},
             {'content-type': content_type},
             ['content-length-range', size, size],

@@ -30,17 +30,16 @@ def test_upload_url(mocker):
             'Content-Type': 'image/png',
             'Content-Disposition': 'attachment; filename="test.png"',
             'Policy': (
-                'eyJleHBpcmF0aW9uIjogIjIwMzItMDEtMDFUMDA6MDA6MDBaIiwgImNvbmRpdGlvbnMiOiBbeyJidWNrZXQiOiAidGVzdGluZy5jb'
-                '20ifSwgeyJrZXkiOiAidGVzdGluZy90ZXN0LnBuZyJ9LCB7ImNvbnRlbnQtdHlwZSI6ICJpbWFnZS9wbmcifSwgWyJjb250ZW50LW'
-                'xlbmd0aC1yYW5nZSIsIDEyMywgMTIzXSwgeyJDb250ZW50LURpc3Bvc2l0aW9uIjogImF0dGFjaG1lbnQ7IGZpbGVuYW1lPVwidGV'
-                'zdC5wbmdcIiJ9LCB7IngtYW16LWNyZWRlbnRpYWwiOiAidGVzdGluZy8yMDMyMDEwMS90ZXN0aW5nL3MzL2F3czRfcmVxdWVzdCJ9'
-                'LCB7IngtYW16LWFsZ29yaXRobSI6ICJBV1M0LUhNQUMtU0hBMjU2In0sIHsieC1hbXotZGF0ZSI6ICIyMDMyMDEwMVQwMDAwMDBaI'
-                'n1dfQ=='
+                'eyJleHBpcmF0aW9uIjogIjIwMzItMDEtMDFUMDA6MDA6MDBaIiwgImNvbmRpdGlvbnMiOiBbeyJidWNrZXQiOiAidGVzdGluZyJ9L'
+                'CB7ImtleSI6ICJ0ZXN0aW5nL3Rlc3QucG5nIn0sIHsiY29udGVudC10eXBlIjogImltYWdlL3BuZyJ9LCBbImNvbnRlbnQtbGVuZ3'
+                'RoLXJhbmdlIiwgMTIzLCAxMjNdLCB7IkNvbnRlbnQtRGlzcG9zaXRpb24iOiAiYXR0YWNobWVudDsgZmlsZW5hbWU9XCJ0ZXN0LnB'
+                'uZ1wiIn0sIHsieC1hbXotY3JlZGVudGlhbCI6ICJ0ZXN0aW5nLzIwMzIwMTAxL3Rlc3RpbmcvczMvYXdzNF9yZXF1ZXN0In0sIHsi'
+                'eC1hbXotYWxnb3JpdGhtIjogIkFXUzQtSE1BQy1TSEEyNTYifSwgeyJ4LWFtei1kYXRlIjogIjIwMzIwMTAxVDAwMDAwMFoifV19'
             ),
             'X-Amz-Algorithm': 'AWS4-HMAC-SHA256',
             'X-Amz-Credential': 'testing/20320101/testing/s3/aws4_request',
             'X-Amz-Date': '20320101T000000Z',
-            'X-Amz-Signature': '6f03af4c50aacb313ceb038743ca035bc2da2dc3bf9d1289f5cb946c6c940a60',
+            'X-Amz-Signature': 'bb741736b6e28ca92e3bc398169dc16dfd4ea85a769b03fec8ca92a684471983',
         },
     }
 
@@ -166,9 +165,14 @@ def test_aws4_upload_signature(client: AsyncClient, mocker):
     }
 
 
-async def test_real_upload(real_aws: AWS):
+@pytest.mark.parametrize('use_bucket_domain', (False, True))
+async def test_real_upload(real_aws: AWS, use_bucket_domain: bool):
+    region = 'us-east-1'
+    real_aws_s3_bucket_name = 'aioaws-testing'
+    bucket = f'{real_aws_s3_bucket_name}.s3.{region}.amazonaws.com' if use_bucket_domain else real_aws_s3_bucket_name
+
     async with AsyncClient(timeout=30) as client:
-        s3 = S3Client(client, S3Config(real_aws.access_key, real_aws.secret_key, 'us-east-1', 'aioaws-testing'))
+        s3 = S3Client(client, S3Config(real_aws.access_key, real_aws.secret_key, region, bucket))
 
         path = f'{run_prefix}/testing/test.txt'
         await s3.upload(path, b'this is a test')

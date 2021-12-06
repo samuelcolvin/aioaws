@@ -112,8 +112,8 @@ class AwsClient:
             'X-Amz-Expires': str(expires),
         }
         if self.aws_session_token:
-            params.update({'X-Amz-Security-Token': self.aws_session_token})
-        params.update({'X-Amz-SignedHeaders': 'host'})
+            params['X-Amz-Security-Token'] = self.aws_session_token
+        params['X-Amz-SignedHeaders'] = 'host'
         url = url.copy_merge_params(params)
         _, signature = self._aws4_signature(now, method, url, {'host': self.host}, 'UNSIGNED-PAYLOAD')
         return url.copy_add_param('X-Amz-Signature', signature)
@@ -135,8 +135,8 @@ class AwsClient:
             'X-Amz-Date': _aws4_x_amz_date(dt),
         }
         if self.aws_session_token:
-            fields.update({'X-Amz-Security-Token': self.aws_session_token})
-        fields.update({'X-Amz-Signature': self._aws4_sign_string(string_to_sign, dt)})
+            fields['X-Amz-Security-Token'] = self.aws_session_token
+        fields['X-Amz-Signature'] = self._aws4_sign_string(string_to_sign, dt)
         return fields
 
     def _auth_headers(
@@ -159,7 +159,7 @@ class AwsClient:
             'x-amz-date': _aws4_x_amz_date(now),
         }
         if self.aws_session_token:
-            headers.update({'x-amz-security-token': self.aws_session_token})
+            headers['x-amz-security-token'] = self.aws_session_token
         payload_sha256_hash = hashlib.sha256(data).hexdigest()
         signed_headers, signature = self._aws4_signature(now, method, url, headers, payload_sha256_hash)
         credential = self._aws4_credential(now)

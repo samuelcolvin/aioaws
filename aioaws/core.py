@@ -32,7 +32,7 @@ class AwsClient:
         self.client = client
         self.aws_access_key = get_config_attr(config, 'aws_access_key')
         self.aws_secret_key = get_config_attr(config, 'aws_secret_key')
-        self.aws_session_token = getattr(config, 'aws_session_token') if hasattr(config, 'aws_session_token') else ''
+        self.aws_session_token = getattr(config, 'aws_session_token', '')
         self.service = service
         self.region = get_config_attr(config, 'aws_region')
         if self.service == 'ses':

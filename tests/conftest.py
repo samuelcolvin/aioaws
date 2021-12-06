@@ -119,7 +119,8 @@ def _fix_real_aws(request):
 
 @pytest.fixture(name='real_aws_s3_bucket_name')
 def _fix_real_aws_s3_bucket_name():
-    """Configure AWS S3 bucket name for testing.
+    """
+    Configure AWS S3 bucket name for testing.
 
     A configurable S3 bucket name enables contributors to run tests on their forks
     and in their AWS accounts, by setting `${{ secrets.TEST_AWS_S3_BUCKET_NAME }}`
@@ -137,7 +138,8 @@ def _fix_real_aws_s3_bucket_name():
 
 @pytest.fixture(name='real_aws_ses_address')
 def _fix_real_aws_ses_address():
-    """Configure AWS SES email address for testing.
+    """
+    Configure AWS SES email address for testing.
 
     As with the S3 bucket name, enabling configuration of the email address allows
     contributors to run tests on their forks and in their AWS accounts, by setting

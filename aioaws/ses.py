@@ -158,7 +158,10 @@ class SesClient:
 
         data = urlencode(form_data).encode()
         r = await self._aws_client.post('/', data=data)
-        return re.search('<MessageId>(.+?)</MessageId>', r.text).group(1)  # type: ignore
+        m = re.search(b'<MessageId>(.+?)</MessageId>', r.content)
+        if not m:  # pragma: no cover
+            raise RuntimeError('failed to find MessageId in response')
+        return m.group(1).decode()
 
 
 def as_recipient(r: Union[str, SesRecipient]) -> SesRecipient:

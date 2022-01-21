@@ -60,7 +60,7 @@ async def verify_webhook(request_body: Union[str, bytes], http_client: AsyncClie
 
 async def verify_signature(payload: SnsPayload, http_client: AsyncClient) -> None:
     url = payload.signing_cert_url
-    if not re.fullmatch(r'sns\.[a-z0-9\-]+\.amazonaws\.com', url.host):
+    if url.host is None or not re.fullmatch(r'sns\.[a-z0-9\-]+\.amazonaws\.com', url.host):
         raise SnsWebhookError(f'invalid SigningCertURL "{url}"')
 
     certs_content = await get_resources(url, http_client)

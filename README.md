@@ -36,7 +36,7 @@ pip install aioaws
 ## S3 Usage
 
 
-```py
+```python
 import asyncio
 # requires `pip install aioaws`
 from aioaws.s3 import S3Client, S3Config

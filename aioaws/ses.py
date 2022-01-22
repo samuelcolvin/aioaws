@@ -41,6 +41,7 @@ class SesAttachment:
     file: Union[Path, bytes]
     name: Optional[str] = None
     mime_type: Optional[str] = None
+    content_id: Optional[str] = None
 
 
 @dataclass
@@ -158,7 +159,10 @@ class SesClient:
 
         data = urlencode(form_data).encode()
         r = await self._aws_client.post('/', data=data)
-        return re.search('<MessageId>(.+?)</MessageId>', r.text).group(1)  # type: ignore
+        m = re.search(b'<MessageId>(.+?)</MessageId>', r.content)
+        if not m:  # pragma: no cover
+            raise RuntimeError('failed to find MessageId in response')
+        return m.group(1).decode()
 
 
 def as_recipient(r: Union[str, SesRecipient]) -> SesRecipient:
@@ -189,7 +193,11 @@ async def prepare_attachment(a: SesAttachment) -> Tuple[MIMEBase, int]:
     msg.set_payload(data)
     encode_base64(msg)
 
-    msg.add_header('Content-Disposition', 'attachment', filename=filename)
+    if a.content_id is None:
+        msg.add_header('Content-Disposition', 'attachment', filename=filename)
+    else:
+        msg.add_header('Content-ID', a.content_id)
+        msg.add_header('Content-Disposition', 'inline', filename=filename)
     return msg, len(data)
 
 

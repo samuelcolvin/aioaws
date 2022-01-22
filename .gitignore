@@ -17,3 +17,4 @@ yarn-error.log*
 /js/public/logo.png
 /.mypy_cache/
 /activate.sh
+/scratch/

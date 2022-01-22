@@ -12,13 +12,9 @@ from . import dummy_server
 
 
 @pytest.fixture(name='loop')
-def _fix_loop():
-    try:
-        loop = asyncio.get_event_loop()
-    except RuntimeError:
-        loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    return loop
+def _fix_loop(event_loop):
+    asyncio.set_event_loop(event_loop)
+    return event_loop
 
 
 @pytest.fixture(name='aws')

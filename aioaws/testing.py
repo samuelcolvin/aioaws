@@ -22,8 +22,9 @@ def ses_email_data(data: Dict[str, str]) -> Dict[str, Any]:
     for part in msg.walk():
         if payload := part.get_payload(decode=True):
             part_info = {'Content-Type': part.get_content_type(), 'payload': payload.decode().replace('\r\n', '\n')}
-            if cd := part['Content-Disposition']:
-                part_info['Content-Disposition'] = cd
+            for key in 'Content-Disposition', 'Content-ID':
+                if cd := part[key]:
+                    part_info[key] = cd
             d['payload'].append(part_info)
 
     return {'body': dict(data), 'email': d}

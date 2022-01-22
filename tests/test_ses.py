@@ -248,6 +248,36 @@ async def test_custom_headers(client: AsyncClient, aws: DummyServer):
     }
 
 
+async def test_inline_attachment(client: AsyncClient, aws: DummyServer):
+    ses = SesClient(client, SesConfig('test_access_key', 'test_secret_key', 'testing-region-1'))
+
+    await ses.send_email(
+        'testing@sender.com',
+        'the subject',
+        ['testing@recipient.com'],
+        'this is a test email',
+        html_body='this is the <b>html body</b>.',
+        attachments=[SesAttachment(file=b'some attachment', name='foobar.txt', content_id='<testing-content-id>')],
+    )
+    assert len(aws.app['emails']) == 1
+    assert aws.app['emails'][0]['email']['payload'] == [
+        {
+            'Content-Type': 'text/plain',
+            'payload': 'this is a test email\n',
+        },
+        {
+            'Content-Type': 'text/html',
+            'payload': 'this is the <b>html body</b>.\n',
+        },
+        {
+            'Content-Type': 'text/plain',
+            'payload': 'some attachment',
+            'Content-Disposition': 'inline; filename="foobar.txt"',
+            'Content-ID': '<testing-content-id>',
+        },
+    ]
+
+
 async def test_encoded_unsub(client: AsyncClient, aws: DummyServer):
     ses = SesClient(client, SesConfig('test_access_key', 'test_secret_key', 'testing-region-1'))
     unsub_link = 'https://www.example.com/unsubscrible?blob=?blob=$MzMgMTYwMTY3MDEyOCBMMzcbN_nhcDZNg-6D=='

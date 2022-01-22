@@ -29,6 +29,7 @@ setup(
         'Programming Language :: Python :: 3 :: Only',
         'Programming Language :: Python :: 3.8',
         'Programming Language :: Python :: 3.9',
+        'Programming Language :: Python :: 3.10',
         'Intended Audience :: Developers',
         'Intended Audience :: Information Technology',
         'Intended Audience :: System Administrators',
@@ -51,7 +52,7 @@ setup(
     install_requires=[
         'aiofiles>=0.5.0',
         'cryptography>=3.1.1',
-        'httpx>=0.18.2',
-        'pydantic>=1.7.4',
+        'httpx>=0.21.0',
+        'pydantic>=1.8.2',
     ],
 )

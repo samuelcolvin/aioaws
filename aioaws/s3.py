@@ -151,7 +151,7 @@ class S3Client:
         https://docs.aws.amazon.com/AmazonS3/latest/dev/RESTAuthentication.html#RESTAuthenticationQueryStringAuth
         """
         assert not path.startswith('/'), 'path should not start with /'
-        url = URL(f'https://{self._aws_client.host}/{path}')
+        url = URL(f'{self._aws_client.endpoint}/{path}')
         url = self._aws_client.add_signed_download_params('GET', url, max_age)
         if version:
             url = url.copy_add_param('v', version)
@@ -201,7 +201,7 @@ class S3Client:
             'Policy': b64_policy,
             **self._aws_client.signed_upload_fields(now, b64_policy),
         }
-        return dict(url=f'https://{self._aws_client.host}/', fields=fields)
+        return dict(url=f'{self._aws_client.endpoint}/', fields=fields)
 
 
 def to_key(sf: Union[S3File, str]) -> str:

@@ -1,6 +1,6 @@
 import asyncio
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Any, Awaitable, Iterable, List, Optional
+from typing import TYPE_CHECKING, Any, Coroutine, Iterable, List, Optional
 
 from httpx import Response
 
@@ -47,7 +47,7 @@ class ManyTasks:
     def __init__(self) -> None:
         self._tasks: List[asyncio.Task[Any]] = []
 
-    def add(self, coroutine: Awaitable[Any], *, name: Optional[str] = None) -> None:
+    def add(self, coroutine: Coroutine[Any, Any, List[str]], *, name: Optional[str] = None) -> None:
         task = asyncio.create_task(coroutine, name=name)
         self._tasks.append(task)
 

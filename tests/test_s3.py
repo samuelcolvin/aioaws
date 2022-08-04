@@ -17,6 +17,35 @@ pytestmark = pytest.mark.asyncio
 run_prefix = secrets.token_hex()[:10]
 
 
+def test_upload_url_after_overriding_aws_client_endpoint(mocker):
+    mocker.patch('aioaws.s3.utcnow', return_value=datetime(2032, 1, 1))
+    s3 = S3Client('-', S3Config('testing', 'testing', 'testing', 'testing.com'))
+    s3._aws_client.endpoint = 'http://localhost:4766'
+    d = s3.signed_upload_url(
+        path='testing/', filename='test.png', content_type='image/png', size=123, expires=datetime(2032, 1, 1)
+    )
+    assert d == {
+        'url': 'http://localhost:4766/',
+        'fields': {
+            'Key': 'testing/test.png',
+            'Content-Type': 'image/png',
+            'Content-Disposition': 'attachment; filename="test.png"',
+            'Policy': (
+                'eyJleHBpcmF0aW9uIjogIjIwMzItMDEtMDFUMDA6MDA6MDBaIiwgImNvbmRpdGlvbnMiOiBbeyJidWNrZXQiOiAidGVzdGluZy5jb'
+                '20ifSwgeyJrZXkiOiAidGVzdGluZy90ZXN0LnBuZyJ9LCB7ImNvbnRlbnQtdHlwZSI6ICJpbWFnZS9wbmcifSwgWyJjb250ZW50LW'
+                'xlbmd0aC1yYW5nZSIsIDEyMywgMTIzXSwgeyJDb250ZW50LURpc3Bvc2l0aW9uIjogImF0dGFjaG1lbnQ7IGZpbGVuYW1lPVwidGV'
+                'zdC5wbmdcIiJ9LCB7IngtYW16LWNyZWRlbnRpYWwiOiAidGVzdGluZy8yMDMyMDEwMS90ZXN0aW5nL3MzL2F3czRfcmVxdWVzdCJ9'
+                'LCB7IngtYW16LWFsZ29yaXRobSI6ICJBV1M0LUhNQUMtU0hBMjU2In0sIHsieC1hbXotZGF0ZSI6ICIyMDMyMDEwMVQwMDAwMDBaI'
+                'n1dfQ=='
+            ),
+            'X-Amz-Algorithm': 'AWS4-HMAC-SHA256',
+            'X-Amz-Credential': 'testing/20320101/testing/s3/aws4_request',
+            'X-Amz-Date': '20320101T000000Z',
+            'X-Amz-Signature': '6f03af4c50aacb313ceb038743ca035bc2da2dc3bf9d1289f5cb946c6c940a60',
+        },
+    }
+
+
 def test_upload_url(mocker):
     mocker.patch('aioaws.s3.utcnow', return_value=datetime(2032, 1, 1))
     s3 = S3Client('-', S3Config('testing', 'testing', 'testing', 'testing.com'))

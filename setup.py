@@ -4,7 +4,7 @@ from pathlib import Path
 from setuptools import setup
 
 
-description = 'Data validation and settings management using python 3.6 type hinting'
+description = 'Asyncio compatible SDK for aws services'
 THIS_DIR = Path(__file__).resolve().parent
 try:
     long_description = (THIS_DIR / 'README.md').read_text()

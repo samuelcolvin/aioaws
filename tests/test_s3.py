@@ -46,29 +46,31 @@ def test_upload_url_after_overriding_aws_client_endpoint(mocker):
     }
 
 
-def test_upload_url(mocker):
+@pytest.mark.parametrize('bucket', ('testing.com', 'testing.com.s3.testing-region.amazonaws.com'))
+def test_upload_url(mocker, bucket):
     mocker.patch('aioaws.s3.utcnow', return_value=datetime(2032, 1, 1))
-    s3 = S3Client('-', S3Config('testing', 'testing', 'testing', 'testing.com'))
+    s3 = S3Client('-', S3Config('testing-access-key', 'testing-secret-key', 'testing-region', bucket))
     d = s3.signed_upload_url(
         path='testing/', filename='test.png', content_type='image/png', size=123, expires=datetime(2032, 1, 1)
     )
     assert d == {
-        'url': 'https://testing.com/',
+        'url': 'https://testing.com.s3.testing-region.amazonaws.com/',
         'fields': {
             'Key': 'testing/test.png',
             'Content-Type': 'image/png',
             'Content-Disposition': 'attachment; filename="test.png"',
             'Policy': (
-                'eyJleHBpcmF0aW9uIjogIjIwMzItMDEtMDFUMDA6MDA6MDBaIiwgImNvbmRpdGlvbnMiOiBbeyJidWNrZXQiOiAidGVzdGluZyJ9L'
-                'CB7ImtleSI6ICJ0ZXN0aW5nL3Rlc3QucG5nIn0sIHsiY29udGVudC10eXBlIjogImltYWdlL3BuZyJ9LCBbImNvbnRlbnQtbGVuZ3'
-                'RoLXJhbmdlIiwgMTIzLCAxMjNdLCB7IkNvbnRlbnQtRGlzcG9zaXRpb24iOiAiYXR0YWNobWVudDsgZmlsZW5hbWU9XCJ0ZXN0LnB'
-                'uZ1wiIn0sIHsieC1hbXotY3JlZGVudGlhbCI6ICJ0ZXN0aW5nLzIwMzIwMTAxL3Rlc3RpbmcvczMvYXdzNF9yZXF1ZXN0In0sIHsi'
-                'eC1hbXotYWxnb3JpdGhtIjogIkFXUzQtSE1BQy1TSEEyNTYifSwgeyJ4LWFtei1kYXRlIjogIjIwMzIwMTAxVDAwMDAwMFoifV19'
+                'eyJleHBpcmF0aW9uIjogIjIwMzItMDEtMDFUMDA6MDA6MDBaIiwgImNvbmRpdGlvbnMiOiBbeyJidWNrZXQiOiAidGVzdGluZy5jb'
+                '20ifSwgeyJrZXkiOiAidGVzdGluZy90ZXN0LnBuZyJ9LCB7ImNvbnRlbnQtdHlwZSI6ICJpbWFnZS9wbmcifSwgWyJjb250ZW50LW'
+                'xlbmd0aC1yYW5nZSIsIDEyMywgMTIzXSwgeyJDb250ZW50LURpc3Bvc2l0aW9uIjogImF0dGFjaG1lbnQ7IGZpbGVuYW1lPVwidGV'
+                'zdC5wbmdcIiJ9LCB7IngtYW16LWNyZWRlbnRpYWwiOiAidGVzdGluZy1hY2Nlc3Mta2V5LzIwMzIwMTAxL3Rlc3RpbmctcmVnaW9u'
+                'L3MzL2F3czRfcmVxdWVzdCJ9LCB7IngtYW16LWFsZ29yaXRobSI6ICJBV1M0LUhNQUMtU0hBMjU2In0sIHsieC1hbXotZGF0ZSI6I'
+                'CIyMDMyMDEwMVQwMDAwMDBaIn1dfQ=='
             ),
             'X-Amz-Algorithm': 'AWS4-HMAC-SHA256',
-            'X-Amz-Credential': 'testing/20320101/testing/s3/aws4_request',
+            'X-Amz-Credential': 'testing-access-key/20320101/testing-region/s3/aws4_request',
             'X-Amz-Date': '20320101T000000Z',
-            'X-Amz-Signature': 'bb741736b6e28ca92e3bc398169dc16dfd4ea85a769b03fec8ca92a684471983',
+            'X-Amz-Signature': '24c430f10bf3bc33696bf0cfb5001fdae2f1094efe7d78ba2b830636d3713b22',
         },
     }
 
@@ -194,14 +196,11 @@ def test_aws4_upload_signature(client: AsyncClient, mocker):
     }
 
 
-@pytest.mark.parametrize('use_bucket_domain', (False, True))
-async def test_real_upload(real_aws: AWS, use_bucket_domain: bool):
-    region = 'us-east-1'
-    real_aws_s3_bucket_name = 'aioaws-testing'
-    bucket = f'{real_aws_s3_bucket_name}.s3.{region}.amazonaws.com' if use_bucket_domain else real_aws_s3_bucket_name
+@pytest.mark.parametrize('bucket', ('aioaws-testing', 'aioaws-testing.s3.us-east-1.amazonaws.com'))
+async def test_real_upload(real_aws: AWS, bucket: str):
 
     async with AsyncClient(timeout=30) as client:
-        s3 = S3Client(client, S3Config(real_aws.access_key, real_aws.secret_key, region, bucket))
+        s3 = S3Client(client, S3Config(real_aws.access_key, real_aws.secret_key, 'us-east-1', bucket))
 
         path = f'{run_prefix}/testing/test.txt'
         await s3.upload(path, b'this is a test')

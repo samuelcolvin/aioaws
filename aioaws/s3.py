@@ -12,7 +12,7 @@ from httpx import URL, AsyncClient
 from pydantic import BaseModel, validator
 
 from ._utils import ManyTasks, get_config_attr, utcnow
-from .core import AwsClient
+from .core import _BUCKET_DOMAIN, AwsClient
 
 if TYPE_CHECKING:
     from ._types import S3ConfigProtocol
@@ -174,7 +174,10 @@ class S3Client:
         assert not path.startswith('/'), 'path must not start with "/"'
         key = path + filename
         bucket = get_config_attr(self._config, 'aws_s3_bucket')
-        bucket_name = bucket.split(sep='.')[0] if '.' in bucket else bucket
+        if re.search(_BUCKET_DOMAIN, bucket):
+            bucket_name = bucket.split('.s3.')[0]
+        else:
+            bucket_name = bucket
         policy_conditions = [
             {'bucket': bucket_name},
             {'key': key},

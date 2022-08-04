@@ -2,6 +2,7 @@ import base64
 import hashlib
 import hmac
 import logging
+import re
 from binascii import hexlify
 from datetime import datetime
 from functools import reduce
@@ -21,6 +22,7 @@ logger = logging.getLogger('aioaws.core')
 _AWS_AUTH_REQUEST = 'aws4_request'
 _CONTENT_TYPE = 'application/x-www-form-urlencoded'
 _AUTH_ALGORITHM = 'AWS4-HMAC-SHA256'
+_BUCKET_DOMAIN = '([^.]+).s3.[^.]+.amazonaws.com'
 
 
 class AwsClient:
@@ -39,7 +41,7 @@ class AwsClient:
         else:
             assert self.service == 's3', self.service
             bucket = get_config_attr(config, 'aws_s3_bucket')
-            if '.' in bucket:
+            if re.search(_BUCKET_DOMAIN, bucket):
                 # assumes the bucket is a domain and is already as a CNAME record for S3
                 self.host = bucket
             else:

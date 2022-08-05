@@ -27,7 +27,6 @@ class PollConfig(BaseModel):
     max_messages: int = Field(1, ge=1, le=10)
 
 
-
 @dataclass
 class _QueueName:
     name: str
@@ -50,7 +49,7 @@ class SQSClient:
         client: AsyncClient,
     ) -> None:
         self._queue_name_or_url: Union[_QueueName, _QueueURL]
-        if queue_name_or_url[:4] == "http":
+        if queue_name_or_url[:4] == 'http':
             self._queue_name_or_url = _QueueURL(queue_name_or_url)
         else:
             self._queue_name_or_url = _QueueName(queue_name_or_url)
@@ -59,9 +58,9 @@ class SQSClient:
             aws_access_key_id=config.aws_access_key_id,
             aws_secret_key=config.aws_secret_key,
             region=config.aws_region,
-            service="sqs",
+            service='sqs',
         )
-        self._service_url = f"htpts://sqs.{config.aws_region}.amazonaws.com"
+        self._service_url = f'htpts://sqs.{config.aws_region}.amazonaws.com'
 
     async def _get_queue_url_from_name_and_region(
         self,
@@ -72,13 +71,13 @@ class SQSClient:
         resp = await client.get(
             url=self._service_url,
             params={
-                "GetQueueUrl": "ListQueues",
-                "QueueName": queue_name,
+                'GetQueueUrl': 'ListQueues',
+                'QueueName': queue_name,
             },
             auth=auth,
         )
         resp.raise_for_status()
-        return resp.json()["QueueUrl"]
+        return resp.json()['QueueUrl']
 
     async def _get_queue_url(self) -> str:
         if isinstance(self._queue_name_or_url, _QueueName):
@@ -101,12 +100,12 @@ class SQSClient:
             resp = await self._client.get(
                 url=queue_url,
                 params={
-                    "Action": "ReceiveMessage",
-                    "MaxNumberOfMessages": config.max_messages,
-                    "WaitTimeSeconds": config.wait_time,
+                    'Action': 'ReceiveMessage',
+                    'MaxNumberOfMessages': config.max_messages,
+                    'WaitTimeSeconds': config.wait_time,
                 },
                 headers={
-                    "Accept": "application/json",
+                    'Accept': 'application/json',
                 },
                 timeout=Timeout(
                     5,  # htppx's default timeout
@@ -119,45 +118,43 @@ class SQSClient:
             resp.raise_for_status()
             yield [
                 SQSMessage.construct(
-                    message_id=message_data["MessageId"],
-                    receipt_handle=message_data["ReceiptHandle"],
-                    md5_of_body=message_data["MD5OfBody"],
-                    body=message_data["Body"],
-                    attributes=message_data["Attributes"],
+                    message_id=message_data['MessageId'],
+                    receipt_handle=message_data['ReceiptHandle'],
+                    md5_of_body=message_data['MD5OfBody'],
+                    body=message_data['Body'],
+                    attributes=message_data['Attributes'],
                 )
-                for message_data in resp.json()["Messages"]
+                for message_data in resp.json()['Messages']
             ]
 
     async def change_visibility(self, message: SQSMessage, timeout: int) -> None:
         queue_url = await self._get_queue_url()
         if timeout >= MAX_VISIBILITY_TIMEOUT:
-            raise ValueError(
-                f"timeout value range is 0 to {MAX_VISIBILITY_TIMEOUT}, got {timeout}"
-            )
+            raise ValueError(f'timeout value range is 0 to {MAX_VISIBILITY_TIMEOUT}, got {timeout}')
         await self._client.post(
             url=queue_url,
             params={
-                "Action": "ChangeMessageVisibility",
-                "VisibilityTimeout": timeout,
-                "ReceiptHandle": message.receipt_handle,
+                'Action': 'ChangeMessageVisibility',
+                'VisibilityTimeout': timeout,
+                'ReceiptHandle': message.receipt_handle,
             },
             auth=self._auth,
             headers={
-                "Accept": "application/json",
-            }
+                'Accept': 'application/json',
+            },
         )
-    
+
     async def delete_message(self, message: SQSMessage) -> None:
         queue_url = await self._get_queue_url()
         await self._client.post(
             url=queue_url,
             params={
-                "Action": "DeletreMessage",
-                "ReceiptHandle": message.receipt_handle,
+                'Action': 'DeletreMessage',
+                'ReceiptHandle': message.receipt_handle,
             },
             auth=self._auth,
             headers={
-                "Accept": "application/json",
+                'Accept': 'application/json',
             },
         )
 

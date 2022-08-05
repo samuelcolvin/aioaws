@@ -119,7 +119,6 @@ class _AWSv4Auth:
         return f'{self.aws_access_key_id}/{self._aws4_scope(dt)}'
 
 
-
 class AwsClient:
     """
     HTTP client for AWS with authentication
@@ -203,7 +202,9 @@ class AwsClient:
             raise RequestError(r)
         return r
 
-    def add_signed_download_params(self, method: Literal['GET', 'POST'], url: httpx.URL, expires: int = 86400) -> httpx.URL:
+    def add_signed_download_params(
+        self, method: Literal['GET', 'POST'], url: httpx.URL, expires: int = 86400
+    ) -> httpx.URL:
         assert expires >= 1, f'expires must be greater than or equal to 1, not {expires}'
         assert expires <= 604800, f'expires must be less than or equal to 604800, not {expires}'
         now = utcnow()
@@ -266,7 +267,7 @@ class AWSV4AuthFlow(httpx.Auth):
             method=request.method.upper(),  # type: ignore
             url=request.url,
             data=request.content,
-            content_type=request.headers.get("Content-Type")
+            content_type=request.headers.get('Content-Type'),
         )
         request.headers.update(auth_headers)
         yield request

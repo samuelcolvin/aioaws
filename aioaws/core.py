@@ -35,7 +35,7 @@ def _aws4_reduce_signature(key: bytes, msg: str) -> bytes:
     return hmac.new(key, msg.encode(), hashlib.sha256).digest()
 
 
-class _AWSv4Auth:
+class AWSv4Auth:
     def __init__(
         self,
         aws_secret_key: str,
@@ -143,7 +143,7 @@ class AwsClient:
                 self.host = f'{bucket}.s3.{self.region}.amazonaws.com'
 
         self.endpoint = f'https://{self.host}'
-        self._auth = _AWSv4Auth(
+        self._auth = AWSv4Auth(
             aws_secret_key=self.aws_secret_key,
             aws_access_key_id=self.aws_access_key,
             region=self.region,
@@ -255,7 +255,7 @@ class AWSV4AuthFlow(Auth):
         region: str,
         service: str,
     ) -> None:
-        self._authorizer = _AWSv4Auth(
+        self._authorizer = AWSv4Auth(
             aws_secret_key=aws_secret_key,
             aws_access_key_id=aws_access_key_id,
             region=region,

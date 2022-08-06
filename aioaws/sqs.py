@@ -93,8 +93,9 @@ class SQSClient:
     async def poll(
         self,
         *,
-        config: PollConfig = PollConfig(),
+        config: Optional[PollConfig] = None,
     ) -> AsyncIterator[Iterable[SQSMessage]]:
+        config = config or PollConfig()
         queue_url = await self._get_queue_url()
         while True:
             resp = await self._client.get(

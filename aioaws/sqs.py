@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 from .core import AWSV4AuthFlow
 
 
-class SQSClientConfig(BaseModel):
+class AWSAuthConfig(BaseModel):
     aws_access_key_id: str
     aws_secret_key: str
     aws_region: str
@@ -44,7 +44,7 @@ class SQSClient:
     def __init__(
         self,
         queue_name_or_url: str,
-        config: SQSClientConfig,
+        auth: AWSAuthConfig,
         *,
         client: AsyncClient,
     ) -> None:
@@ -55,12 +55,12 @@ class SQSClient:
             self._queue_name_or_url = _QueueName(queue_name_or_url)
         self._client = client
         self._auth = AWSV4AuthFlow(
-            aws_access_key_id=config.aws_access_key_id,
-            aws_secret_key=config.aws_secret_key,
-            region=config.aws_region,
+            aws_access_key_id=auth.aws_access_key_id,
+            aws_secret_key=auth.aws_secret_key,
+            region=auth.aws_region,
             service='sqs',
         )
-        self._service_url = f'htpts://sqs.{config.aws_region}.amazonaws.com'
+        self._service_url = f'https://sqs.{auth.aws_region}.amazonaws.com'
 
     async def _get_queue_url_from_name_and_region(
         self,
@@ -71,13 +71,14 @@ class SQSClient:
         resp = await client.get(
             url=self._service_url,
             params={
-                'GetQueueUrl': 'ListQueues',
+                'Action': 'GetQueueUrl',
                 'QueueName': queue_name,
             },
             auth=auth,
+            headers={'Accept': 'application/json'},
         )
         resp.raise_for_status()
-        return resp.json()['QueueUrl']
+        return resp.json()['GetQueueUrlResponse']['GetQueueUrlResult']['QueueUrl']
 
     async def _get_queue_url(self) -> str:
         if isinstance(self._queue_name_or_url, _QueueName):
@@ -125,7 +126,7 @@ class SQSClient:
                     body=message_data['Body'],
                     attributes=message_data['Attributes'],
                 )
-                for message_data in resp.json()['Messages']
+                for message_data in resp.json()['ReceiveMessageResponse']['ReceiveMessageResult']['messages'] or ()
             ]
 
     async def change_visibility(self, message: SQSMessage, timeout: int) -> None:
@@ -147,10 +148,10 @@ class SQSClient:
 
     async def delete_message(self, message: SQSMessage) -> None:
         queue_url = await self._get_queue_url()
-        await self._client.post(
+        resp = await self._client.post(
             url=queue_url,
             params={
-                'Action': 'DeletreMessage',
+                'Action': 'DeleteMessage',
                 'ReceiptHandle': message.receipt_handle,
             },
             auth=self._auth,
@@ -158,21 +159,22 @@ class SQSClient:
                 'Accept': 'application/json',
             },
         )
+        resp.raise_for_status()
 
 
 @asynccontextmanager
 async def create_sqs_client(
     queue: str,
-    config: SQSClientConfig,
+    auth: AWSAuthConfig,
     *,
-    client: Optional[AsyncClient],
+    client: Optional[AsyncClient] = None,
 ) -> AsyncIterator[SQSClient]:
     async with AsyncExitStack() as stack:
         if client is None:
-            client = stack.enter_async_context(AsyncClient())  # type: ignore
+            client = await stack.enter_async_context(AsyncClient())
             assert client is not None  # for mypy
         yield SQSClient(
             queue_name_or_url=queue,
-            config=config,
+            auth=auth,
             client=client,
         )

@@ -8,7 +8,7 @@ from functools import reduce
 from typing import TYPE_CHECKING, Any, Dict, Generator, List, Literal, Optional, Tuple
 from urllib.parse import quote as url_quote
 
-from httpx import Request, Response, Auth, AsyncClient, URL
+from httpx import URL, AsyncClient, Auth, Request, Response
 
 from ._utils import get_config_attr, utcnow
 
@@ -106,9 +106,7 @@ class AwsClient:
             raise RequestError(r)
         return r
 
-    def add_signed_download_params(
-        self, method: Literal['GET', 'POST'], url: URL, expires: int = 86400
-    ) -> URL:
+    def add_signed_download_params(self, method: Literal['GET', 'POST'], url: URL, expires: int = 86400) -> URL:
         assert expires >= 1, f'expires must be greater than or equal to 1, not {expires}'
         assert expires <= 604800, f'expires must be less than or equal to 604800, not {expires}'
         now = utcnow()

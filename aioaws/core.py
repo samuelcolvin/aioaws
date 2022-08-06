@@ -8,7 +8,7 @@ from functools import reduce
 from typing import TYPE_CHECKING, Any, Dict, Generator, List, Literal, Optional, Tuple
 from urllib.parse import quote as url_quote
 
-import httpx
+from httpx import Request, Response, Auth, AsyncClient, URL
 
 from ._utils import get_config_attr, utcnow
 
@@ -51,7 +51,7 @@ class _AWSv4Auth:
     def auth_headers(
         self,
         method: Literal['GET', 'POST'],
-        url: httpx.URL,
+        url: URL,
         *,
         data: Optional[bytes] = None,
         content_type: Optional[str] = None,
@@ -78,7 +78,7 @@ class _AWSv4Auth:
         return headers
 
     def aws4_signature(
-        self, dt: datetime, method: Literal['GET', 'POST'], url: httpx.URL, headers: Dict[str, str], payload_hash: str
+        self, dt: datetime, method: Literal['GET', 'POST'], url: URL, headers: Dict[str, str], payload_hash: str
     ) -> Tuple[str, str]:
         header_keys = sorted(headers)
         signed_headers = ';'.join(header_keys)
@@ -124,7 +124,7 @@ class AwsClient:
     HTTP client for AWS with authentication
     """
 
-    def __init__(self, client: httpx.AsyncClient, config: 'BaseConfigProtocol', service: Literal['s3', 'ses']):
+    def __init__(self, client: AsyncClient, config: 'BaseConfigProtocol', service: Literal['s3', 'ses']):
         self.client = client
         self.aws_access_key = get_config_attr(config, 'aws_access_key')
         self.aws_secret_key = get_config_attr(config, 'aws_secret_key')
@@ -150,7 +150,7 @@ class AwsClient:
             service=self.service,
         )
 
-    async def get(self, path: str = '', *, params: Optional[Dict[str, Any]] = None) -> httpx.Response:
+    async def get(self, path: str = '', *, params: Optional[Dict[str, Any]] = None) -> Response:
         return await self.request('GET', path=path, params=params)
 
     async def raw_post(
@@ -161,7 +161,7 @@ class AwsClient:
         params: Optional[Dict[str, Any]] = None,
         data: Optional[Dict[str, str]] = None,
         files: Optional[Dict[str, bytes]] = None,
-    ) -> httpx.Response:
+    ) -> Response:
         r = await self.client.post(url, params=params, data=data, files=files)
         if r.status_code == expected_status:
             return r
@@ -177,7 +177,7 @@ class AwsClient:
         params: Optional[Dict[str, Any]] = None,
         data: Optional[bytes] = None,
         content_type: Optional[str] = None,
-    ) -> httpx.Response:
+    ) -> Response:
         return await self.request('POST', path=path, params=params, data=data, content_type=content_type)
 
     async def request(
@@ -188,8 +188,8 @@ class AwsClient:
         params: Optional[Dict[str, Any]],
         data: Optional[bytes] = None,
         content_type: Optional[str] = None,
-    ) -> httpx.Response:
-        url = httpx.URL(f'{self.endpoint}{path}', params=[(k, v) for k, v in sorted((params or {}).items())])
+    ) -> Response:
+        url = URL(f'{self.endpoint}{path}', params=[(k, v) for k, v in sorted((params or {}).items())])
         r = await self.client.request(
             method,
             url,
@@ -203,8 +203,8 @@ class AwsClient:
         return r
 
     def add_signed_download_params(
-        self, method: Literal['GET', 'POST'], url: httpx.URL, expires: int = 86400
-    ) -> httpx.URL:
+        self, method: Literal['GET', 'POST'], url: URL, expires: int = 86400
+    ) -> URL:
         assert expires >= 1, f'expires must be greater than or equal to 1, not {expires}'
         assert expires <= 604800, f'expires must be less than or equal to 604800, not {expires}'
         now = utcnow()
@@ -237,7 +237,7 @@ class AwsClient:
 
 
 class RequestError(RuntimeError):
-    def __init__(self, r: httpx.Response):
+    def __init__(self, r: Response):
         error_msg = f'unexpected response from {r.request.method} "{r.request.url}": {r.status_code}'
         super().__init__(error_msg)
         self.response = r
@@ -247,7 +247,7 @@ class RequestError(RuntimeError):
         return f'{self.args[0]}, response:\n{self.response.text}'
 
 
-class AWSV4AuthFlow(httpx.Auth):
+class AWSV4AuthFlow(Auth):
     def __init__(
         self,
         aws_secret_key: str,
@@ -262,7 +262,7 @@ class AWSV4AuthFlow(httpx.Auth):
             service=service,
         )
 
-    def auth_flow(self, request: httpx.Request) -> Generator[httpx.Request, httpx.Response, None]:
+    def auth_flow(self, request: Request) -> Generator[Request, Response, None]:
         auth_headers = self._authorizer.auth_headers(
             method=request.method.upper(),  # type: ignore
             url=request.url,

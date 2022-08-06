@@ -107,18 +107,6 @@ class AWSv4Auth:
         return f'{self.aws_access_key_id}/{self._aws4_scope(dt)}'
 
 
-def _aws4_date_stamp(dt: datetime) -> str:
-    return dt.strftime('%Y%m%d')
-
-
-def _aws4_x_amz_date(dt: datetime) -> str:
-    return dt.strftime('%Y%m%dT%H%M%SZ')
-
-
-def _aws4_reduce_signature(key: bytes, msg: str) -> bytes:
-    return hmac.new(key, msg.encode(), hashlib.sha256).digest()
-
-
 class AwsClient:
     """
     HTTP client for AWS with authentication
@@ -234,6 +222,18 @@ class AwsClient:
             'X-Amz-Date': _aws4_x_amz_date(dt),
             'X-Amz-Signature': self._auth.aws4_sign_string(string_to_sign, dt),
         }
+
+
+def _aws4_date_stamp(dt: datetime) -> str:
+    return dt.strftime('%Y%m%d')
+
+
+def _aws4_x_amz_date(dt: datetime) -> str:
+    return dt.strftime('%Y%m%dT%H%M%SZ')
+
+
+def _aws4_reduce_signature(key: bytes, msg: str) -> bytes:
+    return hmac.new(key, msg.encode(), hashlib.sha256).digest()
 
 
 class RequestError(RuntimeError):

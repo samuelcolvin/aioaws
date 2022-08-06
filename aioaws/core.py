@@ -23,18 +23,6 @@ _CONTENT_TYPE = 'application/x-www-form-urlencoded'
 _AUTH_ALGORITHM = 'AWS4-HMAC-SHA256'
 
 
-def _aws4_date_stamp(dt: datetime) -> str:
-    return dt.strftime('%Y%m%d')
-
-
-def _aws4_x_amz_date(dt: datetime) -> str:
-    return dt.strftime('%Y%m%dT%H%M%SZ')
-
-
-def _aws4_reduce_signature(key: bytes, msg: str) -> bytes:
-    return hmac.new(key, msg.encode(), hashlib.sha256).digest()
-
-
 class AWSv4Auth:
     def __init__(
         self,
@@ -117,6 +105,18 @@ class AWSv4Auth:
 
     def aws4_credential(self, dt: datetime) -> str:
         return f'{self.aws_access_key_id}/{self._aws4_scope(dt)}'
+
+
+def _aws4_date_stamp(dt: datetime) -> str:
+    return dt.strftime('%Y%m%d')
+
+
+def _aws4_x_amz_date(dt: datetime) -> str:
+    return dt.strftime('%Y%m%dT%H%M%SZ')
+
+
+def _aws4_reduce_signature(key: bytes, msg: str) -> bytes:
+    return hmac.new(key, msg.encode(), hashlib.sha256).digest()
 
 
 class AwsClient:

@@ -1,6 +1,6 @@
 aiohttp==3.8.1
 foxglove-web==0.0.36
-pillow==9.0.1
+pillow==9.3.0
 coverage==6.2
 pygments==2.11.2
 pytest==6.2.5

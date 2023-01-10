@@ -52,7 +52,7 @@ setup(
     install_requires=[
         'aiofiles>=0.5.0',
         'cryptography>=3.1.1',
-        'httpx>=0.21.0',
+        'httpx>=0.23.3',
         'pydantic>=1.8.2',
     ],
 )

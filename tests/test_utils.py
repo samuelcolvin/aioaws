@@ -1,5 +1,4 @@
 import pytest
-
 from httpx import AsyncClient
 
 from aioaws import _types, _utils, core

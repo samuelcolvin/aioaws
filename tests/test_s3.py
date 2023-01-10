@@ -18,7 +18,8 @@ run_prefix = secrets.token_hex()[:10]
 def test_upload_url_after_overriding_aws_client_endpoint(mocker):
     mocker.patch('aioaws.s3.utcnow', return_value=datetime(2032, 1, 1))
     s3 = S3Client('-', S3Config('testing', 'testing', 'testing', 'testing.com'))
-    s3._aws_client.endpoint = 'http://localhost:4766'
+    s3._aws_client.host = 'localhost:4766'
+    s3._aws_client.schema = 'http'
     d = s3.signed_upload_url(
         path='testing/', filename='test.png', content_type='image/png', size=123, expires=datetime(2032, 1, 1)
     )

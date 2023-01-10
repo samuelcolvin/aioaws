@@ -7,7 +7,7 @@ from httpx import Response
 if TYPE_CHECKING:
     from ._types import BaseConfigProtocol
 
-__all__ = 'get_config_attr', 'to_unix_s', 'utcnow', 'ManyTasks', 'pretty_response'
+__all__ = 'get_config_attr', 'to_unix_s', 'utcnow', 'ManyTasks', 'pretty_xml', 'pretty_response'
 
 EPOCH = datetime(1970, 1, 1)
 EPOCH_TZ = EPOCH.replace(tzinfo=timezone.utc)
@@ -55,16 +55,24 @@ class ManyTasks:
         return await asyncio.gather(*self._tasks)
 
 
-def pretty_response(r: Response) -> None:  # pragma: no cover
-    from xml.etree import ElementTree
+def pretty_xml(response_xml: bytes) -> str:
+    import xml.dom.minidom
 
+    try:
+        pretty = xml.dom.minidom.parseString(response_xml).toprettyxml(indent='  ')
+    except Exception:  # pragma: no cover
+        return response_xml.decode()
+    else:
+        return f'{pretty} (XML formatted by aioaws)'
+
+
+def pretty_response(r: Response) -> None:  # pragma: no cover
     from devtools import debug
 
-    xml_root = ElementTree.fromstring(r.content)
     debug(
         status=r.status_code,
         url=str(r.url),
         headers=dict(r.request.headers),
         history=r.history,
-        xml={el.tag: el.text for el in xml_root},
+        xml=pretty_xml(r.content),
     )

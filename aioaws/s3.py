@@ -11,7 +11,7 @@ from xml.etree import ElementTree
 from httpx import URL, AsyncClient
 from pydantic import BaseModel, validator
 
-from ._utils import ManyTasks, utcnow
+from ._utils import ManyTasks, pretty_xml, utcnow
 from .core import AwsClient
 
 if TYPE_CHECKING:
@@ -32,6 +32,8 @@ class S3Config:
     aws_secret_key: str
     aws_region: str
     aws_s3_bucket: str
+    # custom host to connect with
+    aws_host: Optional[str] = None
 
 
 class S3File(BaseModel):
@@ -80,7 +82,7 @@ class S3Client:
             if (t := xml_root.find('NextContinuationToken')) is not None:
                 continuation_token = t.text
             else:
-                raise RuntimeError(f'unexpected response from S3: {r.text!r}')
+                raise RuntimeError(f'unexpected response from S3:\n{pretty_xml(r.content)}')
 
     async def delete(self, *files: Union[str, S3File]) -> List[str]:
         """

@@ -124,9 +124,14 @@ async def aws_certs(request):
     return Response(body=aws_certs_body, content_type='content/unknown')
 
 
+async def xml_error(request):
+    return Response(body=s3_list_response_template, content_type='application/xml', status=456)
+
+
 routes = [
     web.route('*', '/s3/', s3_root),
     web.get('/s3_demo_image_url/{image:.*}', s3_demo_image),
     web.post('/ses/', ses_send),
     web.get('/sns/certs/', aws_certs),
+    web.get('/xml-error/', xml_error),
 ]

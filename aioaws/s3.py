@@ -11,7 +11,7 @@ from xml.etree import ElementTree
 from httpx import URL, AsyncClient
 from pydantic import BaseModel, validator
 
-from ._utils import ManyTasks, utcnow, pretty_xml
+from ._utils import ManyTasks, pretty_xml, utcnow
 from .core import AwsClient
 
 if TYPE_CHECKING:

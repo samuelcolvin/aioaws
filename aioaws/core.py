@@ -10,7 +10,7 @@ from urllib.parse import quote as url_quote
 
 from httpx import URL, AsyncClient, Response
 
-from ._utils import get_config_attr, utcnow, pretty_xml
+from ._utils import get_config_attr, pretty_xml, utcnow
 
 if TYPE_CHECKING:
     from ._types import BaseConfigProtocol

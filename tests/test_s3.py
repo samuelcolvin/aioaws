@@ -3,16 +3,14 @@ import secrets
 from datetime import datetime, timezone
 
 import pytest
+from dirty_equals import IsNow
 from foxglove.test_server import DummyServer
 from httpx import AsyncClient
-from pytest_toolbox.comparison import CloseToNow
 
 from aioaws.core import RequestError
 from aioaws.s3 import S3Client, S3Config, S3File, to_key
 
 from .conftest import AWS
-
-pytestmark = pytest.mark.asyncio
 
 run_prefix = secrets.token_hex()[:10]
 
@@ -20,7 +18,8 @@ run_prefix = secrets.token_hex()[:10]
 def test_upload_url_after_overriding_aws_client_endpoint(mocker):
     mocker.patch('aioaws.s3.utcnow', return_value=datetime(2032, 1, 1))
     s3 = S3Client('-', S3Config('testing', 'testing', 'testing', 'testing.com'))
-    s3._aws_client.endpoint = 'http://localhost:4766'
+    s3._aws_client.host = 'localhost:4766'
+    s3._aws_client.schema = 'http'
     d = s3.signed_upload_url(
         path='testing/', filename='test.png', content_type='image/png', size=123, expires=datetime(2032, 1, 1)
     )
@@ -105,6 +104,7 @@ def test_upload_url_no_content_disp(mocker):
     }
 
 
+@pytest.mark.asyncio
 async def test_list(client: AsyncClient):
     s3 = S3Client(client, S3Config('testing', 'testing', 'testing', 'testing'))
     files = [f async for f in s3.list()]
@@ -118,6 +118,7 @@ async def test_list(client: AsyncClient):
     )
 
 
+@pytest.mark.asyncio
 async def test_list_delete_many(client: AsyncClient, aws: DummyServer):
     s3 = S3Client(client, S3Config('testing', 'testing', 'testing', 'testing'))
     files = [f async for f in s3.list('many')]
@@ -134,6 +135,7 @@ async def test_list_delete_many(client: AsyncClient, aws: DummyServer):
     ]
 
 
+@pytest.mark.asyncio
 async def test_list_bad(client: AsyncClient):
     s3 = S3Client(client, S3Config('testing', 'testing', 'testing', 'testing'))
     with pytest.raises(RuntimeError, match='unexpected response from S3'):
@@ -195,6 +197,7 @@ def test_aws4_upload_signature(client: AsyncClient, mocker):
     }
 
 
+@pytest.mark.asyncio
 async def test_real_upload(real_aws: AWS):
     async with AsyncClient(timeout=30) as client:
         s3 = S3Client(client, S3Config(real_aws.access_key, real_aws.secret_key, 'us-east-1', 'aioaws-testing'))
@@ -208,7 +211,7 @@ async def test_real_upload(real_aws: AWS):
             assert len(files) == 1
             assert files[0] == {
                 'key': path,
-                'last_modified': CloseToNow(delta=10),
+                'last_modified': IsNow(delta=10, tz='utc'),
                 'size': 14,
                 'e_tag': '54b0c58c7ce9f2a8b551351102ee0938',
                 'storage_class': 'STANDARD',
@@ -218,6 +221,7 @@ async def test_real_upload(real_aws: AWS):
             assert [f.dict() async for f in s3.list(f'{run_prefix}/')] == []
 
 
+@pytest.mark.asyncio
 async def test_real_download_link(real_aws: AWS):
     async with AsyncClient(timeout=30) as client:
         s3 = S3Client(client, S3Config(real_aws.access_key, real_aws.secret_key, 'us-east-1', 'aioaws-testing'))
@@ -235,6 +239,7 @@ async def test_real_download_link(real_aws: AWS):
             await s3.delete(f'{run_prefix}/foobar.txt')
 
 
+@pytest.mark.asyncio
 async def test_real_many(real_aws: AWS):
     async with AsyncClient(timeout=30) as client:
         s3 = S3Client(client, S3Config(real_aws.access_key, real_aws.secret_key, 'us-east-1', 'aioaws-testing'))
@@ -246,6 +251,7 @@ async def test_real_many(real_aws: AWS):
         assert len(deleted_files) == 51
 
 
+@pytest.mark.asyncio
 async def test_bad_auth():
     async with AsyncClient(timeout=30) as client:
         s3 = S3Client(client, S3Config('BAD_access_key', 'BAD_secret_key', 'us-west-2', 'foobar'))

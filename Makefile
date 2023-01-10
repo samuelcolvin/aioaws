@@ -1,6 +1,7 @@
 .DEFAULT_GOAL := all
 isort = isort aioaws tests
-black = black -S -l 120 --target-version py37 aioaws tests
+black = black aioaws tests
+ruff = ruff aioaws tests
 
 .PHONY: install
 install:
@@ -13,10 +14,11 @@ install:
 format:
 	$(isort)
 	$(black)
+	$(ruff) --fix --exit-zero
 
 .PHONY: lint
 lint:
-	flake8 aioaws/ tests/
+	$(ruff)
 	$(isort) --check-only --df
 	$(black) --check --diff
 
@@ -27,7 +29,7 @@ mypy:
 
 .PHONY: test
 test:
-	pytest --cov=aioaws
+	coverage run -m pytest
 
 .PHONY: testcov
 testcov: test
@@ -39,7 +41,6 @@ all: lint mypy testcov
 
 .PHONY: clean
 clean:
-	python setup.py clean
 	rm -rf `find . -name __pycache__`
 	rm -f `find . -type f -name '*.py[co]' `
 	rm -f `find . -type f -name '*~' `

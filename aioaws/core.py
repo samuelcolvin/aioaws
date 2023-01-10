@@ -10,7 +10,7 @@ from urllib.parse import quote as url_quote
 
 from httpx import URL, AsyncClient, Auth, Request, Response
 
-from ._utils import get_config_attr, utcnow
+from ._utils import get_config_attr, pretty_xml, utcnow
 
 if TYPE_CHECKING:
     from ._types import BaseConfigProtocol
@@ -34,25 +34,32 @@ class AwsClient:
         self.aws_secret_key = get_config_attr(config, 'aws_secret_key')
         self.service = service
         self.region = get_config_attr(config, 'aws_region')
-        if self.service == 'ses':
-            self.host = f'email.{self.region}.amazonaws.com'
-        else:
-            assert self.service == 's3', self.service
-            bucket = get_config_attr(config, 'aws_s3_bucket')
-            if '.' in bucket:
-                # assumes the bucket is a domain and is already as a CNAME record for S3
-                self.host = bucket
+        try:
+            self.host = get_config_attr(config, 'aws_host')
+        except TypeError:
+            if self.service == 'ses':
+                self.host = f'email.{self.region}.amazonaws.com'
             else:
-                # see https://docs.aws.amazon.com/AmazonS3/latest/userguide/access-bucket-intro.html
-                self.host = f'{bucket}.s3.{self.region}.amazonaws.com'
+                assert self.service == 's3', self.service
+                bucket = get_config_attr(config, 'aws_s3_bucket')
+                if '.' in bucket:
+                    # assumes the bucket is a domain and is already as a CNAME record for S3
+                    self.host = bucket
+                else:
+                    # see https://docs.aws.amazon.com/AmazonS3/latest/userguide/access-bucket-intro.html
+                    self.host = f'{bucket}.s3.{self.region}.amazonaws.com'
+        self.schema = 'https'
 
-        self.endpoint = f'https://{self.host}'
         self._auth = AWSv4Auth(
             aws_secret_key=self.aws_secret_key,
             aws_access_key_id=self.aws_access_key,
             region=self.region,
             service=self.service,
         )
+
+    @property
+    def endpoint(self) -> str:
+        return f'{self.schema}://{self.host}'
 
     async def get(self, path: str = '', *, params: Optional[Dict[str, Any]] = None) -> Response:
         return await self.request('GET', path=path, params=params)
@@ -242,7 +249,11 @@ class RequestError(RuntimeError):
         self.status = r.status_code
 
     def __str__(self) -> str:
-        return f'{self.args[0]}, response:\n{self.response.text}'
+        if self.response.headers.get('content-type') == 'application/xml':
+            text = pretty_xml(self.response.content)
+        else:
+            text = self.response.text
+        return f'{self.args[0]}, response:\n{text}'
 
 
 class AWSV4AuthFlow(Auth):

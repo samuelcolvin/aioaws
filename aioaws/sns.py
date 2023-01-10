@@ -16,7 +16,7 @@ logger = logging.getLogger('aioaws.sns')
 
 
 class SnsWebhookError(ValueError):
-    def __init__(self, message: str, details: Any = None, headers: Dict[str, str] = None):
+    def __init__(self, message: str, details: Any = None, headers: Optional[Dict[str, str]] = None):
         super().__init__(message)
         self.message = message
         self.details = details

@@ -48,6 +48,11 @@ class AwsClient:
                 else:
                     # see https://docs.aws.amazon.com/AmazonS3/latest/userguide/access-bucket-intro.html
                     self.host = f'{bucket}.s3.{self.region}.amazonaws.com'
+        self.schema = 'https'
+
+    @property
+    def endpoint(self):
+        return f'{self.schema}://{self.host}'
 
     async def get(self, path: str = '', *, params: Optional[Dict[str, Any]] = None) -> Response:
         return await self.request('GET', path=path, params=params)
@@ -88,7 +93,7 @@ class AwsClient:
         data: Optional[bytes] = None,
         content_type: Optional[str] = None,
     ) -> Response:
-        url = URL(f'https://{self.host}{path}', params=[(k, v) for k, v in sorted((params or {}).items())])
+        url = URL(f'{self.endpoint}{path}', params=[(k, v) for k, v in sorted((params or {}).items())])
         r = await self.client.request(
             method,
             url,

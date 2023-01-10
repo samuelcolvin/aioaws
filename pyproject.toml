@@ -1,0 +1,95 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.version]
+path = "aioaws/version.py"
+
+[project]
+name = "aioaws"
+description = "Asyncio compatible SDK for aws services"
+authors = [{name = "Samuel Colvin", email = "s@muelcolvin.com"}]
+license-files = { paths = ["LICENSE"] }
+readme = "README.md"
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Information Technology",
+    "Intended Audience :: System Administrators",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: Unix",
+    "Operating System :: POSIX :: Linux",
+    "Environment :: Console",
+    "Environment :: MacOS X",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Internet",
+]
+requires-python = ">=3.8"
+dependencies = [
+    "aiofiles>=0.5.0",
+    "cryptography>=3.1.1",
+    "httpx>=0.23.3",
+    "pydantic>=1.8.2",
+]
+dynamic = ["version"]
+
+[project.urls]
+Homepage = "https://github.com/samuelcolvin/aioaws"
+Funding = "https://github.com/sponsors/samuelcolvin"
+Source = "https://github.com/samuelcolvin/aioaws"
+Changelog = "https://github.com/samuelcolvin/aioaws/releases"
+
+[tool.pytest.ini_options]
+testpaths = "tests"
+asyncio_mode = "auto"
+filterwarnings = ["error"]
+
+[tool.coverage.run]
+source = ["aioaws"]
+branch = true
+
+[tool.coverage.report]
+precision = 2
+exclude_lines = [
+    "pragma: no cover",
+    "raise NotImplementedError",
+    "raise NotImplemented",
+    "if TYPE_CHECKING:",
+    "@overload",
+]
+
+[tool.ruff]
+line-length = 120
+extend-select = ["Q"]
+flake8-quotes = {inline-quotes = "single", multiline-quotes = "double"}
+update-check = false
+
+[tool.black]
+color = true
+line-length = 120
+target-version = ["py39"]
+skip-string-normalization = true
+
+[tool.isort]
+line_length = 120
+multi_line_output = 3
+include_trailing_comma = true
+force_grid_wrap = 0
+combine_as_imports = true
+color_output = true
+
+[tool.mypy]
+strict = true
+warn_return_any = false
+show_error_codes = true
+
+[[tool.mypy.overrides]]
+module = ["devtools.*"]
+ignore_missing_imports = true

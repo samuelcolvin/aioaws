@@ -229,6 +229,32 @@ class AWSv4Auth:
         return f'{self.aws_access_key_id}/{self._aws4_scope(dt)}'
 
 
+class AWSV4AuthFlow(Auth):
+    def __init__(
+        self,
+        aws_secret_key: str,
+        aws_access_key_id: str,
+        region: str,
+        service: str,
+    ) -> None:
+        self._authorizer = AWSv4Auth(
+            aws_secret_key=aws_secret_key,
+            aws_access_key_id=aws_access_key_id,
+            region=region,
+            service=service,
+        )
+
+    def auth_flow(self, request: Request) -> Generator[Request, Response, None]:
+        auth_headers = self._authorizer.auth_headers(
+            method=request.method.upper(),  # type: ignore
+            url=request.url,
+            data=request.content,
+            content_type=request.headers.get('Content-Type'),
+        )
+        request.headers.update(auth_headers)
+        yield request
+
+
 def _aws4_date_stamp(dt: datetime) -> str:
     return dt.strftime('%Y%m%d')
 
@@ -254,29 +280,3 @@ class RequestError(RuntimeError):
         else:
             text = self.response.text
         return f'{self.args[0]}, response:\n{text}'
-
-
-class AWSV4AuthFlow(Auth):
-    def __init__(
-        self,
-        aws_secret_key: str,
-        aws_access_key_id: str,
-        region: str,
-        service: str,
-    ) -> None:
-        self._authorizer = AWSv4Auth(
-            aws_secret_key=aws_secret_key,
-            aws_access_key_id=aws_access_key_id,
-            region=region,
-            service=service,
-        )
-
-    def auth_flow(self, request: Request) -> Generator[Request, Response, None]:
-        auth_headers = self._authorizer.auth_headers(
-            method=request.method.upper(),  # type: ignore
-            url=request.url,
-            data=request.content,
-            content_type=request.headers.get('Content-Type'),
-        )
-        request.headers.update(auth_headers)
-        yield request

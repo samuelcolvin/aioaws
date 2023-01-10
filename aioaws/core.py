@@ -5,10 +5,10 @@ import logging
 from binascii import hexlify
 from datetime import datetime
 from functools import reduce
-from typing import TYPE_CHECKING, Any, Dict, List, Literal, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, Generator, List, Literal, Optional, Tuple
 from urllib.parse import quote as url_quote
 
-from httpx import URL, AsyncClient, Response
+from httpx import URL, AsyncClient, Auth, Request, Response
 
 from ._utils import get_config_attr, pretty_xml, utcnow
 
@@ -49,6 +49,13 @@ class AwsClient:
                     # see https://docs.aws.amazon.com/AmazonS3/latest/userguide/access-bucket-intro.html
                     self.host = f'{bucket}.s3.{self.region}.amazonaws.com'
         self.schema = 'https'
+
+        self._auth = AWSv4Auth(
+            aws_secret_key=self.aws_secret_key,
+            aws_access_key=self.aws_access_key,
+            region=self.region,
+            service=self.service,
+        )
 
     @property
     def endpoint(self) -> str:
@@ -98,7 +105,7 @@ class AwsClient:
             method,
             url,
             content=data,
-            headers=self._auth_headers(method, url, data=data, content_type=content_type),
+            headers=self._auth.auth_headers(method, url, data=data, content_type=content_type),
         )
         if r.status_code != 200:
             # from ._utils import pretty_response
@@ -113,18 +120,18 @@ class AwsClient:
         url = url.copy_merge_params(
             {
                 'X-Amz-Algorithm': _AUTH_ALGORITHM,
-                'X-Amz-Credential': self._aws4_credential(now),
+                'X-Amz-Credential': self._auth.aws4_credential(now),
                 'X-Amz-Date': _aws4_x_amz_date(now),
                 'X-Amz-Expires': str(expires),
                 'X-Amz-SignedHeaders': 'host',
             }
         )
-        _, signature = self._aws4_signature(now, method, url, {'host': self.host}, 'UNSIGNED-PAYLOAD')
+        _, signature = self._auth.aws4_signature(now, method, url, {'host': self.host}, 'UNSIGNED-PAYLOAD')
         return url.copy_add_param('X-Amz-Signature', signature)
 
     def upload_extra_conditions(self, dt: datetime) -> List[Dict[str, str]]:
         return [
-            {'x-amz-credential': self._aws4_credential(dt)},
+            {'x-amz-credential': self._auth.aws4_credential(dt)},
             {'x-amz-algorithm': _AUTH_ALGORITHM},
             {'x-amz-date': _aws4_x_amz_date(dt)},
         ]
@@ -132,12 +139,26 @@ class AwsClient:
     def signed_upload_fields(self, dt: datetime, string_to_sign: str) -> Dict[str, str]:
         return {
             'X-Amz-Algorithm': _AUTH_ALGORITHM,
-            'X-Amz-Credential': self._aws4_credential(dt),
+            'X-Amz-Credential': self._auth.aws4_credential(dt),
             'X-Amz-Date': _aws4_x_amz_date(dt),
-            'X-Amz-Signature': self._aws4_sign_string(string_to_sign, dt),
+            'X-Amz-Signature': self._auth.aws4_sign_string(string_to_sign, dt),
         }
 
-    def _auth_headers(
+
+class AWSv4Auth:
+    def __init__(
+        self,
+        aws_secret_key: str,
+        aws_access_key: str,
+        region: str,
+        service: str,
+    ) -> None:
+        self.aws_secret_key = aws_secret_key
+        self.aws_access_key = aws_access_key
+        self.region = region
+        self.service = service
+
+    def auth_headers(
         self,
         method: Literal['GET', 'POST'],
         url: URL,
@@ -153,20 +174,20 @@ class AwsClient:
         headers = {
             'content-md5': base64.b64encode(hashlib.md5(data).digest()).decode(),
             'content-type': content_type,
-            'host': self.host,
+            'host': url.host,
             'x-amz-date': _aws4_x_amz_date(now),
         }
 
         payload_sha256_hash = hashlib.sha256(data).hexdigest()
-        signed_headers, signature = self._aws4_signature(now, method, url, headers, payload_sha256_hash)
-        credential = self._aws4_credential(now)
+        signed_headers, signature = self.aws4_signature(now, method, url, headers, payload_sha256_hash)
+        credential = self.aws4_credential(now)
         authorization_header = (
             f'{_AUTH_ALGORITHM} Credential={credential},SignedHeaders={signed_headers},Signature={signature}'
         )
         headers.update({'authorization': authorization_header, 'x-amz-content-sha256': payload_sha256_hash})
         return headers
 
-    def _aws4_signature(
+    def aws4_signature(
         self, dt: datetime, method: Literal['GET', 'POST'], url: URL, headers: Dict[str, str], payload_hash: str
     ) -> Tuple[str, str]:
         header_keys = sorted(headers)
@@ -187,9 +208,9 @@ class AwsClient:
             hashlib.sha256(canonical_request.encode()).hexdigest(),
         )
         string_to_sign = '\n'.join(string_to_sign_parts)
-        return signed_headers, self._aws4_sign_string(string_to_sign, dt)
+        return signed_headers, self.aws4_sign_string(string_to_sign, dt)
 
-    def _aws4_sign_string(self, string_to_sign: str, dt: datetime) -> str:
+    def aws4_sign_string(self, string_to_sign: str, dt: datetime) -> str:
         key_parts = (
             b'AWS4' + self.aws_secret_key.encode(),
             _aws4_date_stamp(dt),
@@ -204,8 +225,34 @@ class AwsClient:
     def _aws4_scope(self, dt: datetime) -> str:
         return f'{_aws4_date_stamp(dt)}/{self.region}/{self.service}/{_AWS_AUTH_REQUEST}'
 
-    def _aws4_credential(self, dt: datetime) -> str:
+    def aws4_credential(self, dt: datetime) -> str:
         return f'{self.aws_access_key}/{self._aws4_scope(dt)}'
+
+
+class AWSV4AuthFlow(Auth):
+    def __init__(
+        self,
+        aws_secret_key: str,
+        aws_access_key: str,
+        region: str,
+        service: str,
+    ) -> None:
+        self._authorizer = AWSv4Auth(
+            aws_secret_key=aws_secret_key,
+            aws_access_key=aws_access_key,
+            region=region,
+            service=service,
+        )
+
+    def auth_flow(self, request: Request) -> Generator[Request, Response, None]:
+        auth_headers = self._authorizer.auth_headers(
+            method=request.method.upper(),  # type: ignore
+            url=request.url,
+            data=request.content,
+            content_type=request.headers.get('Content-Type'),
+        )
+        request.headers.update(auth_headers)
+        yield request
 
 
 def _aws4_date_stamp(dt: datetime) -> str:

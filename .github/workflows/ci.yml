@@ -81,14 +81,16 @@ jobs:
           python-version: '3.9'
 
       - name: install
-        run: |
-          pip install -U pip setuptools wheel twine
-          pip install .
+        run: pip install -U twine build packaging
 
-      - name: set version
-        run: VERSION_PATH='aioaws/version.py' python <(curl -Ls https://git.io/JT3rm)
+      - name: check version
+        id: check-version
+        run: python <(curl -Ls https://gist.githubusercontent.com/samuelcolvin/4e1ad439c5489e8d6478cdee3eb952ef/raw/check_version.py)
+        env:
+          VERSION_PATH: 'aioaws/version.py'
 
-      - run: python setup.py sdist bdist_wheel
+      - name: build
+        run: python -m build
 
       - run: twine check dist/*
 

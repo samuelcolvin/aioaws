@@ -1,6 +1,6 @@
 # this exists mostly to prompt dependabot to update critical depend
 -r tests/requirements.txt
-aiofiles==0.8.0
-cryptography==36.0.1
-httpx==0.23.0
-pydantic==1.9.0
+aiofiles==22.1.0
+cryptography==39.0.0
+httpx==0.23.3
+pydantic==1.10.4

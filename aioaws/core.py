@@ -51,7 +51,7 @@ class AwsClient:
         self.schema = 'https'
 
     @property
-    def endpoint(self):
+    def endpoint(self) -> str:
         return f'{self.schema}://{self.host}'
 
     async def get(self, path: str = '', *, params: Optional[Dict[str, Any]] = None) -> Response:

@@ -60,7 +60,7 @@ def pretty_xml(response_xml: bytes) -> str:
 
     try:
         pretty = xml.dom.minidom.parseString(response_xml).toprettyxml(indent='  ')
-    except Exception:
+    except Exception:  # pragma: no cover
         return response_xml.decode()
     else:
         return f'{pretty} (XML formatted by aioaws)'

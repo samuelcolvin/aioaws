@@ -4,9 +4,9 @@ import re
 from datetime import datetime
 
 import pytest
+from dirty_equals import IsStr
 from foxglove.test_server import DummyServer
 from httpx import AsyncClient
-from dirty_equals import IsStr
 
 from aioaws.ses import SesAttachment, SesClient, SesConfig, SesRecipient, SesWebhookInfo
 from aioaws.sns import SnsWebhookError

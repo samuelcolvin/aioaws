@@ -50,7 +50,7 @@ async def test_poll_from_queue_url() -> None:
     sqs = SQSClient(
         queue_name_or_url=queue_url,
         auth=AWSAuthConfig(
-            aws_access_key_id='test_access_key',
+            aws_access_key='test_access_key',
             aws_secret_key='test_secret_key',
             aws_region='testing-region-1',
         ),
@@ -128,7 +128,7 @@ async def test_change_visbility_timeout() -> None:
     sqs = SQSClient(
         queue_name_or_url=queue_url,
         auth=AWSAuthConfig(
-            aws_access_key_id='test_access_key',
+            aws_access_key='test_access_key',
             aws_secret_key='test_secret_key',
             aws_region='testing-region-1',
         ),
@@ -201,7 +201,7 @@ async def test_delete_message() -> None:
     sqs = SQSClient(
         queue_name_or_url=queue_url,
         auth=AWSAuthConfig(
-            aws_access_key_id='test_access_key',
+            aws_access_key='test_access_key',
             aws_secret_key='test_secret_key',
             aws_region='testing-region-1',
         ),
@@ -281,7 +281,7 @@ async def test_get_queue_url() -> None:
     sqs = SQSClient(
         queue_name_or_url=queue_name,
         auth=AWSAuthConfig(
-            aws_access_key_id='test_access_key',
+            aws_access_key='test_access_key',
             aws_secret_key='test_secret_key',
             aws_region='testing-region-1',
         ),

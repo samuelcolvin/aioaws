@@ -52,7 +52,7 @@ class AwsClient:
 
         self._auth = AWSv4Auth(
             aws_secret_key=self.aws_secret_key,
-            aws_access_key_id=self.aws_access_key,
+            aws_access_key=self.aws_access_key,
             region=self.region,
             service=self.service,
         )
@@ -149,12 +149,12 @@ class AWSv4Auth:
     def __init__(
         self,
         aws_secret_key: str,
-        aws_access_key_id: str,
+        aws_access_key: str,
         region: str,
         service: str,
     ) -> None:
         self.aws_secret_key = aws_secret_key
-        self.aws_access_key_id = aws_access_key_id
+        self.aws_access_key = aws_access_key
         self.region = region
         self.service = service
 
@@ -226,20 +226,20 @@ class AWSv4Auth:
         return f'{_aws4_date_stamp(dt)}/{self.region}/{self.service}/{_AWS_AUTH_REQUEST}'
 
     def aws4_credential(self, dt: datetime) -> str:
-        return f'{self.aws_access_key_id}/{self._aws4_scope(dt)}'
+        return f'{self.aws_access_key}/{self._aws4_scope(dt)}'
 
 
 class AWSV4AuthFlow(Auth):
     def __init__(
         self,
         aws_secret_key: str,
-        aws_access_key_id: str,
+        aws_access_key: str,
         region: str,
         service: str,
     ) -> None:
         self._authorizer = AWSv4Auth(
             aws_secret_key=aws_secret_key,
-            aws_access_key_id=aws_access_key_id,
+            aws_access_key=aws_access_key,
             region=region,
             service=service,
         )

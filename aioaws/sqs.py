@@ -9,7 +9,7 @@ from .core import AWSV4AuthFlow
 
 
 class AWSAuthConfig(BaseModel):
-    aws_access_key_id: str
+    aws_access_key: str
     aws_secret_key: str
     aws_region: str
 
@@ -55,7 +55,7 @@ class SQSClient:
             self._queue_name_or_url = _QueueName(queue_name_or_url)
         self._client = client
         self._auth = AWSV4AuthFlow(
-            aws_access_key_id=auth.aws_access_key_id,
+            aws_access_key=auth.aws_access_key,
             aws_secret_key=auth.aws_secret_key,
             region=auth.aws_region,
             service='sqs',

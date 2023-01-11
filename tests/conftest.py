@@ -40,7 +40,7 @@ class CustomAsyncClient(AsyncClient):
 
         new_url = url.copy_with(scheme=self.scheme, host=self.host, port=self.port)
         if 's3.' in url.host:
-            return new_url.copy_with(path='/s3/')
+            return new_url.copy_with(path=f'/s3{new_url.path}')
         elif 'email.' in url.host:
             return new_url.copy_with(path='/ses/')
         elif url.host.startswith('sns.'):

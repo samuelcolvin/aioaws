@@ -38,7 +38,6 @@ pip install aioaws
 
 ```py
 import asyncio
-# requires `pip install aioaws`
 from aioaws.s3 import S3Client, S3Config
 from httpx import AsyncClient
 
@@ -76,7 +75,7 @@ async def s3_demo(client: AsyncClient):
     # delete recursively based on a prefix
     await s3.delete_recursive('path/to/')
 
-    # generate an upload link suitable for sending to a borwser to enabled
+    # generate an upload link suitable for sending to a browser to enabled
     # secure direct file upload (see below)
     upload_data = s3.signed_upload_url(
         path='path/to/',

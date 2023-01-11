@@ -123,7 +123,7 @@ async def xml_error(request):
 
 routes = [
     web.route('*', '/s3/', s3_root),
-    web.get('/s3/{path:.*}', s3_file),
+    web.get('/s3/testing.txt', s3_file),
     web.post('/ses/', ses_send),
     web.get('/sns/certs/', aws_certs),
     web.get('/xml-error/', xml_error),

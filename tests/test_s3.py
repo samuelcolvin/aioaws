@@ -3,7 +3,7 @@ import secrets
 from datetime import datetime, timezone
 
 import pytest
-from dirty_equals import IsNow
+from dirty_equals import IsNow, IsStr
 from foxglove.test_server import DummyServer
 from httpx import AsyncClient
 
@@ -133,6 +133,30 @@ async def test_list_delete_many(client: AsyncClient, aws: DummyServer):
         'POST /s3/?delete=1 > 200',
         'POST /s3/?delete=1 > 200',
     ]
+
+
+@pytest.mark.asyncio
+async def test_download_ok(client: AsyncClient, aws: DummyServer):
+    s3 = S3Client(client, S3Config('testing', 'testing', 'testing', 'testing'))
+    content = await s3.download('testing.txt')
+    assert content == b'this is demo file content'
+    assert aws.log == [IsStr(regex=r'GET /s3/testing\.txt\?.+ > 200')]
+
+
+@pytest.mark.asyncio
+async def test_download_ok_file(client: AsyncClient, aws: DummyServer):
+    s3 = S3Client(client, S3Config('testing', 'testing', 'testing', 'testing'))
+    content = await s3.download(S3File(Key='testing.txt', LastModified=0, Size=1, ETag='x', StorageClass='x'))
+    assert content == b'this is demo file content'
+    assert aws.log == [IsStr(regex=r'GET /s3/testing\.txt\?.+ > 200')]
+
+
+@pytest.mark.asyncio
+async def test_download_error(client: AsyncClient, aws: DummyServer):
+    s3 = S3Client(client, S3Config('testing', 'testing', 'testing', 'testing'))
+    with pytest.raises(RequestError):
+        await s3.download('missing.txt')
+    assert aws.log == [IsStr(regex=r'GET /s3/missing\.txt\?.+ > 404')]
 
 
 @pytest.mark.asyncio

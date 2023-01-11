@@ -12,7 +12,7 @@ from httpx import URL, AsyncClient
 from pydantic import BaseModel, validator
 
 from ._utils import ManyTasks, pretty_xml, utcnow
-from .core import AwsClient
+from .core import AwsClient, RequestError
 
 if TYPE_CHECKING:
     from ._types import S3ConfigProtocol
@@ -158,6 +158,19 @@ class S3Client:
         if version:
             url = url.copy_add_param('v', version)
         return str(url)
+
+    async def download(self, file: Union[str, S3File], version: Optional[str] = None) -> bytes:
+        if isinstance(file, str):
+            path = file
+        else:
+            path = file.key
+
+        url = self.signed_download_url(path, version=version)
+        r = await self._aws_client.client.get(url)
+        if r.status_code == 200:
+            return r.content
+        else:
+            raise RequestError(r)
 
     def signed_upload_url(
         self,

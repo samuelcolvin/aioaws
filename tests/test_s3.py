@@ -104,6 +104,40 @@ def test_upload_url_no_content_disp(mocker):
     }
 
 
+def test_upload_url_with_acl(mocker):
+    mocker.patch('aioaws.s3.utcnow', return_value=datetime(2032, 1, 1))
+    s3 = S3Client('-', S3Config('testing', 'testing', 'testing', 'testing.com'))
+    d = s3.signed_upload_url(
+        path='testing/',
+        filename='test.png',
+        content_type='image/png',
+        size=123,
+        expires=datetime(2032, 1, 1),
+        acl='public-read',
+    )
+    assert d == {
+        'url': 'https://testing.com/',
+        'fields': {
+            'Key': 'testing/test.png',
+            'Content-Type': 'image/png',
+            'ACL': 'public-read',
+            'Content-Disposition': 'attachment; filename="test.png"',
+            'Policy': (
+                'eyJleHBpcmF0aW9uIjogIjIwMzItMDEtMDFUMDA6MDA6MDBaIiwgImNvbmRpdGlvbnMiOiBbeyJidWNrZXQiOiAidGVzdGluZy5jb'
+                '20ifSwgeyJrZXkiOiAidGVzdGluZy90ZXN0LnBuZyJ9LCB7ImNvbnRlbnQtdHlwZSI6ICJpbWFnZS9wbmcifSwgWyJjb250ZW50LW'
+                'xlbmd0aC1yYW5nZSIsIDEyMywgMTIzXSwgeyJhY2wiOiAicHVibGljLXJlYWQifSwgeyJDb250ZW50LURpc3Bvc2l0aW9uIjogImF'
+                '0dGFjaG1lbnQ7IGZpbGVuYW1lPVwidGVzdC5wbmdcIiJ9LCB7IngtYW16LWNyZWRlbnRpYWwiOiAidGVzdGluZy8yMDMyMDEwMS90'
+                'ZXN0aW5nL3MzL2F3czRfcmVxdWVzdCJ9LCB7IngtYW16LWFsZ29yaXRobSI6ICJBV1M0LUhNQUMtU0hBMjU2In0sIHsieC1hbXotZ'
+                'GF0ZSI6ICIyMDMyMDEwMVQwMDAwMDBaIn1dfQ=='
+            ),
+            'X-Amz-Algorithm': 'AWS4-HMAC-SHA256',
+            'X-Amz-Credential': 'testing/20320101/testing/s3/aws4_request',
+            'X-Amz-Date': '20320101T000000Z',
+            'X-Amz-Signature': 'f3e4658f5101e1c927a415550a79d502e864690b062b65af8c3553656ffd977c',
+        },
+    }
+
+
 @pytest.mark.asyncio
 async def test_list(client: AsyncClient):
     s3 = S3Client(client, S3Config('testing', 'testing', 'testing', 'testing'))

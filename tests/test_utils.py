@@ -19,7 +19,7 @@ def test_get_config_attr():
 
 
 def test_types():
-    assert hasattr(_types, 'BaseConfigProtocol')
+    assert hasattr(_types, 'ConfigProtocol')
     assert hasattr(_types, 'S3ConfigProtocol')
 
 

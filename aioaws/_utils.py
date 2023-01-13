@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any, Coroutine, Iterable, List, Optional
 from httpx import Response
 
 if TYPE_CHECKING:
-    from ._types import BaseConfigProtocol
+    from ._types import ConfigProtocol
 
 __all__ = 'get_config_attr', 'to_unix_s', 'utcnow', 'ManyTasks', 'pretty_xml', 'pretty_response'
 
@@ -13,7 +13,7 @@ EPOCH = datetime(1970, 1, 1)
 EPOCH_TZ = EPOCH.replace(tzinfo=timezone.utc)
 
 
-def get_config_attr(config: 'BaseConfigProtocol', name: str) -> str:
+def get_config_attr(config: 'ConfigProtocol', name: str) -> str:
     try:
         s = getattr(config, name)
     except AttributeError:

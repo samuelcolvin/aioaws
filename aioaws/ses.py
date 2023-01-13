@@ -21,7 +21,7 @@ from . import sns
 from .core import AwsClient
 
 if TYPE_CHECKING:
-    from ._types import BaseConfigProtocol
+    from ._types import ConfigProtocol
 
 __all__ = 'SesAttachment', 'SesClient', 'SesConfig', 'SesRecipient', 'SesWebhookInfo'
 logger = logging.getLogger('aioaws.ses')
@@ -62,7 +62,7 @@ class SesRecipient:
 class SesClient:
     __slots__ = '_config', '_aws_client'
 
-    def __init__(self, http_client: AsyncClient, config: 'BaseConfigProtocol'):
+    def __init__(self, http_client: AsyncClient, config: 'ConfigProtocol'):
         self._aws_client = AwsClient(http_client, config, 'ses')
         self._config = config
 

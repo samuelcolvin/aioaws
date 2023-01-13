@@ -1,7 +1,7 @@
 from typing import Protocol
 
 
-class BaseConfigProtocol(Protocol):
+class ConfigProtocol(Protocol):
     aws_access_key: str
     aws_secret_key: str
     aws_region: str

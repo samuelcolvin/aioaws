@@ -5,7 +5,7 @@ import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from itertools import chain
-from typing import TYPE_CHECKING, Any, AsyncIterable, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, AsyncIterable, Dict, List, Literal, Optional, Union
 from xml.etree import ElementTree
 
 from httpx import URL, AsyncClient
@@ -24,6 +24,16 @@ expiry_rounding = 100
 # removing xmlns="http://s3.amazonaws.com/doc/2006-03-01/" from xml makes it much easier to parse
 xmlns = 'http://s3.amazonaws.com/doc/2006-03-01/'
 xmlns_re = re.compile(f' xmlns="{re.escape(xmlns)}"'.encode())
+
+ACLType = Union[
+    Literal['private'],
+    Literal['public-read'],
+    Literal['public-read-write'],
+    Literal['authenticated-read'],
+    Literal['aws-exec-read'],
+    Literal['bucket-owner-read'],
+    Literal['bucket-owner-full-control'],
+]
 
 
 @dataclass
@@ -96,7 +106,9 @@ class S3Client:
         results = await tasks.finish()
         return list(chain(*results))
 
-    async def upload(self, file_path: str, content: bytes, *, content_type: Optional[str] = None) -> None:
+    async def upload(
+        self, file_path: str, content: bytes, *, content_type: Optional[str] = None, acl: Optional[ACLType] = None
+    ) -> None:
         assert not file_path.startswith('/'), 'file_path must not start with /'
         parts = file_path.rsplit('/', 1)
 
@@ -109,6 +121,7 @@ class S3Client:
             content_type=content_type or 'application/octet-stream',
             size=len(content),
             expires=datetime.utcnow() + timedelta(minutes=30),
+            acl=acl,
         )
         await self._aws_client.raw_post(d['url'], expected_status=204, data=d['fields'], files={'file': content})
 
@@ -181,6 +194,7 @@ class S3Client:
         size: int,
         content_disp: bool = True,
         expires: Optional[datetime] = None,
+        acl: Optional[ACLType] = None,
     ) -> Dict[str, Any]:
         """
         https://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-post-example.html
@@ -195,6 +209,11 @@ class S3Client:
             ['content-length-range', size, size],
         ]
 
+        acl_field = {}
+        if acl:
+            acl_field = {'ACL': acl}
+            policy_conditions.append({'acl': acl})
+
         content_disp_fields = {}
         if content_disp:
             content_disp_fields = {'Content-Disposition': f'attachment; filename="{filename}"'}
@@ -208,10 +227,10 @@ class S3Client:
             'conditions': policy_conditions,
         }
         b64_policy = base64.b64encode(json.dumps(policy).encode()).decode()
-
         fields = {
             'Key': key,
             'Content-Type': content_type,
+            **acl_field,
             **content_disp_fields,
             'Policy': b64_policy,
             **self._aws_client.signed_upload_fields(now, b64_policy),

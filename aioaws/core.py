@@ -13,7 +13,7 @@ from httpx import URL, AsyncClient, Auth, Request, Response
 from ._utils import get_config_attr, pretty_xml, utcnow
 
 if TYPE_CHECKING:
-    from ._types import BaseConfigProtocol
+    from ._types import ConfigProtocol
 
 __all__ = 'AwsClient', 'RequestError'
 logger = logging.getLogger('aioaws.core')
@@ -28,7 +28,7 @@ class AwsClient:
     HTTP client for AWS with authentication
     """
 
-    def __init__(self, client: AsyncClient, config: 'BaseConfigProtocol', service: Literal['s3', 'ses']):
+    def __init__(self, client: AsyncClient, config: 'ConfigProtocol', service: Literal['s3', 'ses']):
         self.client = client
         self.aws_access_key = get_config_attr(config, 'aws_access_key')
         self.aws_secret_key = get_config_attr(config, 'aws_secret_key')

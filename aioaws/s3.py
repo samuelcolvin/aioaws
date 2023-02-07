@@ -3,7 +3,7 @@ import json
 import mimetypes
 import re
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from itertools import chain
 from typing import TYPE_CHECKING, Any, AsyncIterable, Dict, List, Optional, Union
 from xml.etree import ElementTree
@@ -60,6 +60,9 @@ class S3Client:
         self._aws_client = AwsClient(http_client, config, 's3')
         self._config = config
 
+    def createMultipartUpload(self, file_path: str):
+        return MultiPartUpload(self, file_path)
+
     async def list(self, prefix: Optional[str] = None) -> AsyncIterable[S3File]:
         """
         List S3 files with the given prefix.
@@ -107,9 +110,9 @@ class S3Client:
             path=f'{parts[0]}/' if len(parts) > 1 else '',
             filename=parts[-1],
             content_type=content_type or 'application/octet-stream',
-            size=len(content),
             expires=datetime.utcnow() + timedelta(minutes=30),
         )
+
         await self._aws_client.raw_post(d['url'], expected_status=204, data=d['fields'], files={'file': content})
 
     async def delete_recursive(self, prefix: Optional[str]) -> List[str]:
@@ -160,11 +163,7 @@ class S3Client:
         return str(url)
 
     async def download(self, file: Union[str, S3File], version: Optional[str] = None) -> bytes:
-        if isinstance(file, str):
-            path = file
-        else:
-            path = file.key
-
+        path = file if isinstance(file, str) else file.key
         url = self.signed_download_url(path, version=version)
         r = await self._aws_client.client.get(url)
         if r.status_code == 200:
@@ -178,21 +177,19 @@ class S3Client:
         path: str,
         filename: str,
         content_type: str,
-        size: int,
         content_disp: bool = True,
         expires: Optional[datetime] = None,
     ) -> Dict[str, Any]:
         """
         https://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-post-example.html
         """
-        assert path == '' or path.endswith('/'), 'path must be empty or end with "/"'
+        assert not path or path.endswith('/'), 'path must be empty or end with "/"'
         assert not path.startswith('/'), 'path must not start with "/"'
         key = path + filename
         policy_conditions = [
             {'bucket': self._config.aws_s3_bucket},
             {'key': key},
             {'content-type': content_type},
-            ['content-length-range', size, size],
         ]
 
         content_disp_fields = {}
@@ -215,7 +212,9 @@ class S3Client:
             **content_disp_fields,
             'Policy': b64_policy,
             **self._aws_client.signed_upload_fields(now, b64_policy),
+            'Content-Encoding': 'utf-8'
         }
+
         return dict(url=f'{self._aws_client.endpoint}/', fields=fields)
 
 
@@ -226,3 +225,81 @@ def to_key(sf: Union[S3File, str]) -> str:
         return sf.key
     else:
         raise TypeError('must be a string or S3File object')
+
+
+class MultiPartUpload:
+    """ MultiPartUpload context manager for aws S3. Correctly handles starting and stopping, either because of the upload being complete or being cancelled.
+
+    Raises:
+        RuntimeError: When trying to upload a part when the multipart upload has been stopped, aborted, or not yet started.
+
+    """
+
+    # todo  cleanup
+    __slots__ = 'client', 'upload_id', "_aborted", "_ongoing", '_url', "_parts", "filepath", "_fields"
+
+    def __init__(self, s3Client: S3Client, file_path: str):
+        assert not file_path.startswith('/'), 'file_path must not start with /'
+        self.filepath = file_path
+        self.client = s3Client
+        self._parts = []
+
+        # todo refactor the whole signed upload stuff -> it's really not clear
+        self._url, self._fields = self.client.signed_upload_url(path='path/', filename='testt.txt', content_type='text/plain').values()
+
+    async def __aenter__(self):
+        resp = await self.client._aws_client.client.post(f'{self._url}{self._fields["Key"]}?uploads')
+
+        upload_id = ElementTree.fromstring(xmlns_re.sub(b'', resp.content)).find('UploadId')
+        if upload_id is None:
+            raise RuntimeError(f'unexpected response from S3:\n{pretty_xml(resp.content)}')
+
+        self.upload_id = upload_id.text
+        self._ongoing = True
+        self._aborted = False
+
+        return self
+
+    async def __aexit__(self, *args):
+        # todo check for errors
+        # todo check if aborted
+        try:
+            await self.completeUpload()
+        except Exception as e:
+            self.abortUpload()
+
+    async def completeUpload(self):
+        if self._ongoing and not self._aborted:
+            self._ongoing = False
+
+        xmlstuff = f"""
+        <CompleteMultipartUpload xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
+            {"".join(
+                f"<Part><ETag>{etag}</ETag><PartNumber>{part}</PartNumber></Part>"
+                for part, etag in self._parts
+            )}
+        </CompleteMultipartUpload>
+        """
+
+        resp = await self.client._aws_client.client.post(
+            url=f"{self._url}{self._fields['Key']}?uploadId={self.upload_id}", content=xmlstuff
+        )
+
+        # todo verify the response
+
+    def abortUpload(self):
+        # todo implement actual abort
+        if self._ongoing and not self._aborted:
+            self._ongoing = False
+            self._aborted = True
+
+    async def uploadPart(self, part_number: int, content: bytes | str):
+        if self._aborted or not self._ongoing:
+            raise RuntimeError("MultiPartUpload was unable to start or has been aborted.")
+
+        resp = await self.client._aws_client.client.put(
+            url=f"{self._url}{self._fields['Key']}?partNumber={part_number}&uploadId={self.upload_id}",
+            content=content,
+        )
+
+        self._parts.append((part_number, resp.headers.get('etag')))

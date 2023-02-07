@@ -48,7 +48,7 @@ class AwsClient:
                 else:
                     # see https://docs.aws.amazon.com/AmazonS3/latest/userguide/access-bucket-intro.html
                     self.host = f'{bucket}.s3.{self.region}.amazonaws.com'
-        self.schema = 'https'
+        self.schema = 'http'
 
         self._auth = AWSv4Auth(
             aws_secret_key=self.aws_secret_key,
@@ -100,7 +100,7 @@ class AwsClient:
         data: Optional[bytes] = None,
         content_type: Optional[str] = None,
     ) -> Response:
-        url = URL(f'{self.endpoint}{path}', params=[(k, v) for k, v in sorted((params or {}).items())])
+        url = URL(f'{self.endpoint}{path}', params=list(sorted((params or {}).items())))
         r = await self.client.request(
             method,
             url,

@@ -215,7 +215,6 @@ class S3Client:
             **content_disp_fields,
             'Policy': b64_policy,
             **self._aws_client.signed_upload_fields(now, b64_policy),
-            'Content-Encoding': 'utf-8',
         }
 
         return dict(url=f'{self._aws_client.endpoint}/', fields=fields)

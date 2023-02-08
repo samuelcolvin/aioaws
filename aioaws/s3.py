@@ -25,6 +25,7 @@ expiry_rounding = 100
 xmlns = 'http://s3.amazonaws.com/doc/2006-03-01/'
 xmlns_re = re.compile(f' xmlns="{re.escape(xmlns)}"'.encode())
 
+
 @dataclass
 class S3Config:
     aws_access_key: str
@@ -228,7 +229,7 @@ def to_key(sf: Union[S3File, str]) -> str:
 
 class MultiPartUpload:
     """
-    MultiPartUpload context manager for aws S3. Correctly handles starting and stopping, 
+    MultiPartUpload context manager for aws S3. Correctly handles starting and stopping,
     either because of the upload being complete or being cancelled.
 
     Raises:

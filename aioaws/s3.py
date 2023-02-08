@@ -3,7 +3,7 @@ import json
 import mimetypes
 import re
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from itertools import chain
 from typing import TYPE_CHECKING, Any, AsyncIterable, Dict, List, Optional, Union
 from xml.etree import ElementTree
@@ -24,7 +24,6 @@ expiry_rounding = 100
 # removing xmlns="http://s3.amazonaws.com/doc/2006-03-01/" from xml makes it much easier to parse
 xmlns = 'http://s3.amazonaws.com/doc/2006-03-01/'
 xmlns_re = re.compile(f' xmlns="{re.escape(xmlns)}"'.encode())
-
 
 @dataclass
 class S3Config:
@@ -212,7 +211,7 @@ class S3Client:
             **content_disp_fields,
             'Policy': b64_policy,
             **self._aws_client.signed_upload_fields(now, b64_policy),
-            'Content-Encoding': 'utf-8'
+            'Content-Encoding': 'utf-8',
         }
 
         return dict(url=f'{self._aws_client.endpoint}/', fields=fields)
@@ -228,78 +227,128 @@ def to_key(sf: Union[S3File, str]) -> str:
 
 
 class MultiPartUpload:
-    """ MultiPartUpload context manager for aws S3. Correctly handles starting and stopping, either because of the upload being complete or being cancelled.
+    """MultiPartUpload context manager for aws S3. Correctly handles starting and stopping, either because of the upload being complete or being cancelled.
 
     Raises:
-        RuntimeError: When trying to upload a part when the multipart upload has been stopped, aborted, or not yet started.
-
+        RuntimeError: When trying to upload a part after the multipart upload has been aborted.
+        RuntimeError: When trying to list parts after the multipart upload has been aborted.
+        RuntimeError: When trying to abort more than once.
+        RuntimeError: When S3 returns an unexpected response.
     """
 
-    # todo  cleanup
-    __slots__ = 'client', 'upload_id', "_aborted", "_ongoing", '_url', "_parts", "filepath", "_fields"
+    # todo better usage of httpx client
+    __slots__ = 'client', 'upload_id', '_url', "_parts", "_fields"
 
     def __init__(self, s3Client: S3Client, file_path: str):
-        assert not file_path.startswith('/'), 'file_path must not start with /'
-        self.filepath = file_path
         self.client = s3Client
         self._parts = []
 
+        path, name = file_path.lstrip('/').rsplit('/', 1)
         # todo refactor the whole signed upload stuff -> it's really not clear
-        self._url, self._fields = self.client.signed_upload_url(path='path/', filename='testt.txt', content_type='text/plain').values()
+        self._url, self._fields = self.client.signed_upload_url(
+            path=f'{path}/', filename=name, content_type='text/plain'
+        ).values()
 
     async def __aenter__(self):
+        # start the upload
         resp = await self.client._aws_client.client.post(f'{self._url}{self._fields["Key"]}?uploads')
 
+        # get the upload id
         upload_id = ElementTree.fromstring(xmlns_re.sub(b'', resp.content)).find('UploadId')
         if upload_id is None:
             raise RuntimeError(f'unexpected response from S3:\n{pretty_xml(resp.content)}')
 
         self.upload_id = upload_id.text
-        self._ongoing = True
-        self._aborted = False
 
         return self
 
-    async def __aexit__(self, *args):
-        # todo check for errors
-        # todo check if aborted
-        try:
-            await self.completeUpload()
-        except Exception as e:
-            self.abortUpload()
+    async def __aexit__(self, exc_type, exc, tb):
+        # if an exception occured
+        if exc:
+            # exception occured but upload_id is still present -> abort
+            if self.upload_id:
+                await self.abortUpload()
 
-    async def completeUpload(self):
-        if self._ongoing and not self._aborted:
-            self._ongoing = False
+            # re-raise
+            raise exc
 
+        # no exception occured AND abort has not been called (since upload id is not None)
+        if self.upload_id:
+            await self._completeUpload()
+
+    async def _completeUpload(self):
+        if not self.upload_id:
+            raise RuntimeError("Couldn't complete MultiPartUpload without upload_id, has the upload been aborted?")
+
+        if not self._parts:
+            # no parts present -> abort and return
+            await self.abortUpload()
+            return
+
+        # generate xml content
         xmlstuff = f"""
         <CompleteMultipartUpload xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
             {"".join(
                 f"<Part><ETag>{etag}</ETag><PartNumber>{part}</PartNumber></Part>"
-                for part, etag in self._parts
+                for part, etag in sorted(self._parts)
             )}
         </CompleteMultipartUpload>
         """
 
+        # upload to s3
         resp = await self.client._aws_client.client.post(
             url=f"{self._url}{self._fields['Key']}?uploadId={self.upload_id}", content=xmlstuff
         )
 
-        # todo verify the response
+        if resp.status_code != 200:
+            raise RuntimeError(f"Couldn't complete MultiPartUpload:\n{pretty_xml(resp.content)}")
 
-    def abortUpload(self):
-        # todo implement actual abort
-        if self._ongoing and not self._aborted:
-            self._ongoing = False
-            self._aborted = True
+        # upload has been completed, id is no longer valid
+        self.upload_id = None
+
+    async def abortUpload(self):
+        if not self.upload_id:
+            raise RuntimeError("Couldn't abort MultiPartUpload without upload_id, has the upload already been aborted?")
+
+        resp = await self.client._aws_client.client.delete(
+            url=f"{self._url}{self._fields['Key']}?uploadId={self.upload_id}"
+        )
+        self.upload_id = None
+
+        if resp.status_code != 204:
+            raise RuntimeError(f"Couldn't abort MultiPartUpload:\n{pretty_xml(resp.content)}")
 
     async def uploadPart(self, part_number: int, content: bytes | str):
-        if self._aborted or not self._ongoing:
-            raise RuntimeError("MultiPartUpload was unable to start or has been aborted.")
+        if not self.upload_id:
+            raise RuntimeError(
+                "No upload_id found, either the upload has already been completed, aborted, or not started correctly."
+            )
 
+        # upload data
         resp = await self.client._aws_client.client.put(
             url=f"{self._url}{self._fields['Key']}?partNumber={part_number}&uploadId={self.upload_id}",
             content=content,
         )
 
-        self._parts.append((part_number, resp.headers.get('etag')))
+        if resp.status_code != 200:
+            raise RuntimeError(f"Couldn't upload part:\n{pretty_xml(resp.content)}")
+
+        # save part Etag and number
+        part = (part_number, resp.headers.get('etag'))
+        if part not in self._parts:
+            self._parts.append(part)
+
+    async def listParts(self, max_parts: int, marker: int = 0):
+        if not self.upload_id:
+            raise RuntimeError(
+                "No upload_id found, either the upload has already been completed, aborted, or not started correctly."
+            )
+
+        resp = await self.client._aws_client.client.get(
+            url=f"{self._url}{self._fields['Key']}?max-parts={max_parts}&part-number-marker={marker}&uploadId={self.upload_id}"
+        )
+
+        if resp.status_code != 200:
+            raise RuntimeError(f"Couldn't list parts:\n{pretty_xml(resp.content)}")
+
+        return resp.content

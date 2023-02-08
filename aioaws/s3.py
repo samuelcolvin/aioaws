@@ -5,6 +5,7 @@ import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from itertools import chain
+from types import TracebackType
 from typing import TYPE_CHECKING, Any, AsyncIterable, Dict, List, Optional, Union
 from xml.etree import ElementTree
 
@@ -179,7 +180,7 @@ class S3Client:
         content_type: str,
         content_disp: bool = True,
         expires: Optional[datetime] = None,
-        size: Optional[int] = None
+        size: Optional[int] = None,
     ) -> Dict[str, Any]:
         """
         https://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-post-example.html
@@ -191,6 +192,7 @@ class S3Client:
             {'bucket': self._config.aws_s3_bucket},
             {'key': key},
             {'content-type': content_type},
+            ['content-length-range', size, size] if size else None,
         ]
 
         content_disp_fields = {}
@@ -266,7 +268,7 @@ class MultiPartUpload:
 
         return self
 
-    async def __aexit__(self, exc_type: Exception, exc, tb) -> None:
+    async def __aexit__(self, exc_type: type, exc: Exception, tb: TracebackType) -> None:
         # if an exception occured
         if exc:
             # exception occured but upload_id is still present -> abort

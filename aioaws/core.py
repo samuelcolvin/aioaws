@@ -48,7 +48,7 @@ class AwsClient:
                 else:
                     # see https://docs.aws.amazon.com/AmazonS3/latest/userguide/access-bucket-intro.html
                     self.host = f'{bucket}.s3.{self.region}.amazonaws.com'
-        self.schema = 'http'
+        self.schema = 'https'
 
         self._auth = AWSv4Auth(
             aws_secret_key=self.aws_secret_key,

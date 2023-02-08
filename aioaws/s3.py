@@ -227,7 +227,9 @@ def to_key(sf: Union[S3File, str]) -> str:
 
 
 class MultiPartUpload:
-    """MultiPartUpload context manager for aws S3. Correctly handles starting and stopping, either because of the upload being complete or being cancelled.
+    """
+    MultiPartUpload context manager for aws S3. Correctly handles starting and stopping, 
+    either because of the upload being complete or being cancelled.
 
     Raises:
         RuntimeError: When trying to upload a part after the multipart upload has been aborted.
@@ -237,7 +239,7 @@ class MultiPartUpload:
     """
 
     # todo better usage of httpx client
-    __slots__ = 'client', 'upload_id', '_url', "_parts", "_fields"
+    __slots__ = 'client', 'upload_id', '_url', '_parts', '_fields'
 
     def __init__(self, s3Client: S3Client, file_path: str):
         self.client = s3Client
@@ -321,7 +323,7 @@ class MultiPartUpload:
     async def uploadPart(self, part_number: int, content: bytes | str):
         if not self.upload_id:
             raise RuntimeError(
-                "No upload_id found, either the upload has already been completed, aborted, or not started correctly."
+                'No upload_id found, either the upload has already been completed, aborted, or not started correctly.'
             )
 
         # upload data
@@ -341,7 +343,7 @@ class MultiPartUpload:
     async def listParts(self, max_parts: int, marker: int = 0):
         if not self.upload_id:
             raise RuntimeError(
-                "No upload_id found, either the upload has already been completed, aborted, or not started correctly."
+                'No upload_id found, either the upload has already been completed, aborted, or not started correctly.'
             )
 
         resp = await self.client._aws_client.client.get(

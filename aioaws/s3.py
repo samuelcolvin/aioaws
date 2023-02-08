@@ -60,7 +60,7 @@ class S3Client:
         self._aws_client = AwsClient(http_client, config, 's3')
         self._config = config
 
-    def createMultipartUpload(self, file_path: str):
+    def createMultipartUpload(self, file_path: str) -> 'MultiPartUpload':
         return MultiPartUpload(self, file_path)
 
     async def list(self, prefix: Optional[str] = None) -> AsyncIterable[S3File]:
@@ -179,6 +179,7 @@ class S3Client:
         content_type: str,
         content_disp: bool = True,
         expires: Optional[datetime] = None,
+        size: Optional[int] = None
     ) -> Dict[str, Any]:
         """
         https://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-post-example.html
@@ -244,7 +245,7 @@ class MultiPartUpload:
 
     def __init__(self, s3Client: S3Client, file_path: str):
         self.client = s3Client
-        self._parts = []
+        self._parts: list[tuple[int, str]] = []
 
         path, name = file_path.lstrip('/').rsplit('/', 1)
         # todo refactor the whole signed upload stuff -> it's really not clear
@@ -252,7 +253,7 @@ class MultiPartUpload:
             path=f'{path}/', filename=name, content_type='text/plain'
         ).values()
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> 'MultiPartUpload':
         # start the upload
         resp = await self.client._aws_client.client.post(f'{self._url}{self._fields["Key"]}?uploads')
 
@@ -265,7 +266,7 @@ class MultiPartUpload:
 
         return self
 
-    async def __aexit__(self, exc_type, exc, tb):
+    async def __aexit__(self, exc_type: Exception, exc, tb) -> None:
         # if an exception occured
         if exc:
             # exception occured but upload_id is still present -> abort
@@ -279,7 +280,7 @@ class MultiPartUpload:
         if self.upload_id:
             await self._completeUpload()
 
-    async def _completeUpload(self):
+    async def _completeUpload(self) -> None:
         if not self.upload_id:
             raise RuntimeError("Couldn't complete MultiPartUpload without upload_id, has the upload been aborted?")
 
@@ -309,7 +310,7 @@ class MultiPartUpload:
         # upload has been completed, id is no longer valid
         self.upload_id = None
 
-    async def abortUpload(self):
+    async def abortUpload(self) -> None:
         if not self.upload_id:
             raise RuntimeError("Couldn't abort MultiPartUpload without upload_id, has the upload already been aborted?")
 
@@ -321,7 +322,7 @@ class MultiPartUpload:
         if resp.status_code != 204:
             raise RuntimeError(f"Couldn't abort MultiPartUpload:\n{pretty_xml(resp.content)}")
 
-    async def uploadPart(self, part_number: int, content: bytes | str):
+    async def uploadPart(self, part_number: int, content: Union[bytes, str]) -> None:
         if not self.upload_id:
             raise RuntimeError(
                 'No upload_id found, either the upload has already been completed, aborted, or not started correctly.'
@@ -341,7 +342,7 @@ class MultiPartUpload:
         if part not in self._parts:
             self._parts.append(part)
 
-    async def listParts(self, max_parts: int, marker: int = 0):
+    async def listParts(self, max_parts: int, marker: int = 0) -> bytes:
         if not self.upload_id:
             raise RuntimeError(
                 'No upload_id found, either the upload has already been completed, aborted, or not started correctly.'

@@ -13,11 +13,7 @@ def ses_email_data(data: Dict[str, str]) -> Dict[str, Any]:
     """
     msg_raw = base64.b64decode(data['RawMessage.Data'])
     msg = message_from_bytes(msg_raw)
-    d: Dict[str, Any] = {}
-    for k, v in msg.items():
-        if k != 'Content-Type':
-            d[k] = ''.join(decode_header(v))
-
+    d: Dict[str, Any] = {k: ''.join(decode_header(v)) for k, v in msg.items() if k != 'Content-Type'}
     d['payload'] = []
     for part in msg.walk():
         if payload := part.get_payload(decode=True):

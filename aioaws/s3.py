@@ -5,6 +5,7 @@ import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from itertools import chain
+from types import TracebackType
 from typing import TYPE_CHECKING, Any, AsyncIterable, Dict, List, Optional, Union
 from xml.etree import ElementTree
 
@@ -60,6 +61,9 @@ class S3Client:
         self._aws_client = AwsClient(http_client, config, 's3')
         self._config = config
 
+    def createMultipartUpload(self, file_path: str) -> 'MultiPartUpload':
+        return MultiPartUpload(self, file_path)
+
     async def list(self, prefix: Optional[str] = None) -> AsyncIterable[S3File]:
         """
         List S3 files with the given prefix.
@@ -107,9 +111,9 @@ class S3Client:
             path=f'{parts[0]}/' if len(parts) > 1 else '',
             filename=parts[-1],
             content_type=content_type or 'application/octet-stream',
-            size=len(content),
             expires=datetime.utcnow() + timedelta(minutes=30),
         )
+
         await self._aws_client.raw_post(d['url'], expected_status=204, data=d['fields'], files={'file': content})
 
     async def delete_recursive(self, prefix: Optional[str]) -> List[str]:
@@ -160,11 +164,7 @@ class S3Client:
         return str(url)
 
     async def download(self, file: Union[str, S3File], version: Optional[str] = None) -> bytes:
-        if isinstance(file, str):
-            path = file
-        else:
-            path = file.key
-
+        path = file if isinstance(file, str) else file.key
         url = self.signed_download_url(path, version=version)
         r = await self._aws_client.client.get(url)
         if r.status_code == 200:
@@ -178,21 +178,21 @@ class S3Client:
         path: str,
         filename: str,
         content_type: str,
-        size: int,
         content_disp: bool = True,
         expires: Optional[datetime] = None,
+        size: Optional[int] = None,
     ) -> Dict[str, Any]:
         """
         https://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-post-example.html
         """
-        assert path == '' or path.endswith('/'), 'path must be empty or end with "/"'
+        assert not path or path.endswith('/'), 'path must be empty or end with "/"'
         assert not path.startswith('/'), 'path must not start with "/"'
         key = path + filename
         policy_conditions = [
             {'bucket': self._config.aws_s3_bucket},
             {'key': key},
             {'content-type': content_type},
-            ['content-length-range', size, size],
+            ['content-length-range', size, size] if size else None,
         ]
 
         content_disp_fields = {}
@@ -216,6 +216,7 @@ class S3Client:
             'Policy': b64_policy,
             **self._aws_client.signed_upload_fields(now, b64_policy),
         }
+
         return dict(url=f'{self._aws_client.endpoint}/', fields=fields)
 
 
@@ -226,3 +227,133 @@ def to_key(sf: Union[S3File, str]) -> str:
         return sf.key
     else:
         raise TypeError('must be a string or S3File object')
+
+
+class MultiPartUpload:
+    """
+    MultiPartUpload context manager for aws S3. Correctly handles starting and stopping,
+    either because of the upload being complete or being cancelled.
+
+    Raises:
+        RuntimeError: When trying to upload a part after the multipart upload has been aborted.
+        RuntimeError: When trying to list parts after the multipart upload has been aborted.
+        RuntimeError: When trying to abort more than once.
+        RuntimeError: When S3 returns an unexpected response.
+    """
+
+    # todo better usage of httpx client
+    __slots__ = 'client', 'upload_id', '_url', '_parts', '_fields'
+
+    def __init__(self, s3Client: S3Client, file_path: str):
+        self.client = s3Client
+        self._parts: list[tuple[int, str]] = []
+
+        path, name = file_path.lstrip('/').rsplit('/', 1)
+        # todo refactor the whole signed upload stuff -> it's really not clear
+        self._url, self._fields = self.client.signed_upload_url(
+            path=f'{path}/', filename=name, content_type='text/plain'
+        ).values()
+
+    async def __aenter__(self) -> 'MultiPartUpload':
+        # start the upload
+        resp = await self.client._aws_client.client.post(f'{self._url}{self._fields["Key"]}?uploads')
+
+        # get the upload id
+        upload_id = ElementTree.fromstring(xmlns_re.sub(b'', resp.content)).find('UploadId')
+        if upload_id is None:
+            raise RuntimeError(f'unexpected response from S3:\n{pretty_xml(resp.content)}')
+
+        self.upload_id = upload_id.text
+
+        return self
+
+    async def __aexit__(self, exc_type: type, exc: Exception, tb: TracebackType) -> None:
+        # if an exception occured
+        if exc:
+            # exception occured but upload_id is still present -> abort
+            if self.upload_id:
+                await self.abortUpload()
+
+            # re-raise
+            raise exc
+
+        # no exception occured AND abort has not been called (since upload id is not None)
+        if self.upload_id:
+            await self._completeUpload()
+
+    async def _completeUpload(self) -> None:
+        if not self.upload_id:
+            raise RuntimeError("Couldn't complete MultiPartUpload without upload_id, has the upload been aborted?")
+
+        if not self._parts:
+            # no parts present -> abort and return
+            await self.abortUpload()
+            return
+
+        # generate xml content
+        xmlstuff = f"""
+        <CompleteMultipartUpload xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
+            {"".join(
+                f"<Part><ETag>{etag}</ETag><PartNumber>{part}</PartNumber></Part>"
+                for part, etag in sorted(self._parts)
+            )}
+        </CompleteMultipartUpload>
+        """
+
+        # upload to s3
+        resp = await self.client._aws_client.client.post(
+            url=f"{self._url}{self._fields['Key']}?uploadId={self.upload_id}", content=xmlstuff
+        )
+
+        if resp.status_code != 200:
+            raise RuntimeError(f"Couldn't complete MultiPartUpload:\n{pretty_xml(resp.content)}")
+
+        # upload has been completed, id is no longer valid
+        self.upload_id = None
+
+    async def abortUpload(self) -> None:
+        if not self.upload_id:
+            raise RuntimeError("Couldn't abort MultiPartUpload without upload_id, has the upload already been aborted?")
+
+        resp = await self.client._aws_client.client.delete(
+            url=f"{self._url}{self._fields['Key']}?uploadId={self.upload_id}"
+        )
+        self.upload_id = None
+
+        if resp.status_code != 204:
+            raise RuntimeError(f"Couldn't abort MultiPartUpload:\n{pretty_xml(resp.content)}")
+
+    async def uploadPart(self, part_number: int, content: Union[bytes, str]) -> None:
+        if not self.upload_id:
+            raise RuntimeError(
+                'No upload_id found, either the upload has already been completed, aborted, or not started correctly.'
+            )
+
+        # upload data
+        resp = await self.client._aws_client.client.put(
+            url=f"{self._url}{self._fields['Key']}?partNumber={part_number}&uploadId={self.upload_id}",
+            content=content,
+        )
+
+        if resp.status_code != 200:
+            raise RuntimeError(f"Couldn't upload part:\n{pretty_xml(resp.content)}")
+
+        # save part Etag and number
+        part = (part_number, resp.headers.get('etag'))
+        if part not in self._parts:
+            self._parts.append(part)
+
+    async def listParts(self, max_parts: int, marker: int = 0) -> bytes:
+        if not self.upload_id:
+            raise RuntimeError(
+                'No upload_id found, either the upload has already been completed, aborted, or not started correctly.'
+            )
+
+        resp = await self.client._aws_client.client.get(
+            url=f"{self._url}{self._fields['Key']}?max-parts={max_parts}&part-number-marker={marker}&uploadId={self.upload_id}"
+        )
+
+        if resp.status_code != 200:
+            raise RuntimeError(f"Couldn't list parts:\n{pretty_xml(resp.content)}")
+
+        return resp.content

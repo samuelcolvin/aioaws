@@ -100,7 +100,7 @@ class AwsClient:
         data: Optional[bytes] = None,
         content_type: Optional[str] = None,
     ) -> Response:
-        url = URL(f'{self.endpoint}{path}', params=[(k, v) for k, v in sorted((params or {}).items())])
+        url = URL(f'{self.endpoint}{path}', params=list(sorted((params or {}).items())))
         r = await self.client.request(
             method,
             url,

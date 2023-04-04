@@ -34,6 +34,7 @@ class S3Config:
     aws_s3_bucket: str
     # custom host to connect with
     aws_host: Optional[str] = None
+    aws_host_schema: Optional[str] = None
 
 
 class S3File(BaseModel):

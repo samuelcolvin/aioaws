@@ -45,7 +45,7 @@ from httpx import AsyncClient
 from devtools import debug
 
 async def s3_demo(client: AsyncClient):
-    s3 = S3Client(client, S3Config('<access key>', '<secret key>', '<region>', 'my_bucket_name.com'))
+    s3 = S3Client(client, S3Config('<access key>', '<secret key>', '<region>', 'my_bucket_name'))
 
     # upload a file:
     await s3.upload('path/to/upload-to.txt', b'this the content')

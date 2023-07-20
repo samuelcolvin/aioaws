@@ -1,4 +1,4 @@
-aiohttp==3.8.3
+aiohttp==3.8.5
 foxglove-web==0.0.36
 coverage==7.0.4
 dirty-equals==0.5.0

@@ -51,8 +51,7 @@ class CustomAsyncClient(AsyncClient):
             else:
                 return new_url.copy_with(path='/status/200/')
         else:
-            # return url
-            raise ValueError(f'no local endpoint found for "{url}"')
+            return new_url
 
 
 @pytest.fixture(name='client')

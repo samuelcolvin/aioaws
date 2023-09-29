@@ -28,7 +28,7 @@ class AwsClient:
     HTTP client for AWS with authentication
     """
 
-    def __init__(self, client: AsyncClient, config: 'BaseConfigProtocol', service: Literal['s3', 'ses']):
+    def __init__(self, client: AsyncClient, config: 'BaseConfigProtocol', service: Literal['s3', 'ses', 'dynamodb']):
         self.client = client
         self.aws_access_key = get_config_attr(config, 'aws_access_key')
         self.aws_secret_key = get_config_attr(config, 'aws_secret_key')
@@ -88,8 +88,11 @@ class AwsClient:
         params: Optional[Dict[str, Any]] = None,
         data: Optional[bytes] = None,
         content_type: Optional[str] = None,
+        headers: Optional[Dict[str, str]] = None,
     ) -> Response:
-        return await self.request('POST', path=path, params=params, data=data, content_type=content_type)
+        return await self.request(
+            'POST', path=path, params=params, data=data, content_type=content_type, headers=headers,
+        )
 
     async def request(
         self,
@@ -99,13 +102,18 @@ class AwsClient:
         params: Optional[Dict[str, Any]],
         data: Optional[bytes] = None,
         content_type: Optional[str] = None,
+        headers: Optional[Dict[str, str]] = None,
     ) -> Response:
         url = URL(f'{self.endpoint}{path}', params=[(k, v) for k, v in sorted((params or {}).items())])
+        headers = {
+            **(headers or {}),
+            **self._auth.auth_headers(method, url, data=data, content_type=content_type),
+        }
         r = await self.client.request(
             method,
             url,
             content=data,
-            headers=self._auth.auth_headers(method, url, data=data, content_type=content_type),
+            headers=headers,
         )
         if r.status_code != 200:
             # from ._utils import pretty_response

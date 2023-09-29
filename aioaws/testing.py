@@ -52,3 +52,76 @@ def decode_header(header: str) -> Iterable[str]:
             yield part
         else:
             yield part.decode(encoding or 'utf8')
+
+
+class MockDynamoDB:
+    def __init__(self):
+        self.storage = {}
+        self.EmptyRecord = {"ResponseMetadata": {"HTTPStatusCode": 200}}
+
+    def put_item(self, body: Dict[str, Any]):
+        TableName = body["TableName"]
+        Item = body["Item"]
+        if TableName not in self.storage:
+            self.storage[TableName] = {}
+
+        print(f"Storing item {Item}")
+        if "id" in Item:
+            self.storage[TableName][Item["id"]["S"]] = Item
+            print(self.storage)
+        else:
+            print("didn't store")
+        return self.EmptyRecord
+
+    def get_item(self, body: Dict[str, Any]):
+        TableName = body["TableName"]
+        Key = body["Key"]
+        print(f"Getting item {Key}")
+        if TableName not in self.storage:
+            print("Item List: Empty Storage")
+            return self.EmptyRecord
+        print(f"Item List {self.storage[TableName]}")
+        if Key["id"]["S"] not in self.storage[TableName]:
+            return self.EmptyRecord
+        return {
+            "Item": self.storage[TableName][Key["id"]["S"]],
+            "ResponseMetadata": {"HTTPStatusCode": 200},
+        }
+
+    def delete_item(
+        self,
+        body: Dict[str, Any],
+    ):
+        print(body)
+        TableName = body["TableName"]
+        Key = body["Key"]
+        ConditionExpression = body.get("ConditionExpression")
+        ExpressionAttributeValues = body.get("ExpressionAttributeValues")
+
+        if TableName not in self.storage:
+            return self.EmptyRecord
+
+        del self.storage[TableName][Key["id"]["S"]]
+
+        return {"ResponseMetadata": {"HTTPStatusCode": 200}}
+
+    def query(
+        self,
+        body: Dict[str, Any],
+    ):
+        TableName = body["TableName"]
+        ExpressionAttributeValues = body["ExpressionAttributeValues"]
+        IndexName = body.get("IndexName")
+        KeyConditionExpression = body.get("KeyConditionExpression")
+
+        items = []
+        if TableName not in self.storage:
+            print("Item List: Empty Storage")
+            return self.EmptyRecord
+
+        for item in self.storage[TableName].values():
+            print(f"Missing Item? {item}")
+            if item["id"]["S"] == ExpressionAttributeValues[":id"]["S"]:
+                items.append(item)
+
+        return {"Items": items, "ResponseMetadata": {"HTTPStatusCode": 200}}

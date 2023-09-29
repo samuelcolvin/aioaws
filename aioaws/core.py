@@ -203,7 +203,7 @@ class AWSv4Auth:
         canonical_request_parts = (
             method,
             url_quote(url.path),
-            url.query.decode(),
+            url.query.decode().replace('/', '%2F'),
             ''.join(f'{k}:{headers[k]}\n' for k in header_keys),
             signed_headers,
             payload_hash,

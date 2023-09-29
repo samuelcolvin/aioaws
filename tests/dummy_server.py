@@ -1,3 +1,4 @@
+import json
 import re
 from typing import List
 from xml.etree import ElementTree
@@ -5,7 +6,7 @@ from xml.etree import ElementTree
 from aiohttp import web
 from aiohttp.web_response import Response
 
-from aioaws.testing import ses_email_data, ses_send_response
+from aioaws.testing import ses_email_data, ses_send_response, MockDynamoDB
 
 s3_list_response_template = """\
 <?xml version="1.0" ?>
@@ -121,10 +122,34 @@ async def xml_error(request):
     return Response(body=s3_list_response_template, content_type='application/xml', status=456)
 
 
+mock_dynamo = MockDynamoDB()
+
+
+async def dynamodb(request: web.Request):
+    assert request.method == 'POST', request.method
+    if "GetItem" in request.headers["X-Amz-Target"]:
+        body = await request.json()
+        response = mock_dynamo.get_item(body)
+    elif "PutItem" in request.headers["X-Amz-Target"]:
+        body = await request.json()
+        response = mock_dynamo.put_item(body)
+    elif "DeleteItem" in request.headers["X-Amz-Target"]:
+        body = await request.json()
+        response = mock_dynamo.delete_item(body)
+    elif "Query" in request.headers["X-Amz-Target"]:
+        body = await request.json()
+        response = mock_dynamo.query(body)
+    else:
+        response = {}
+
+    return Response(body=json.dumps(response), content_type='application/x-amz-json-1.0')
+
+
 routes = [
     web.route('*', '/s3/', s3_root),
     web.get('/s3/testing.txt', s3_file),
     web.post('/ses/', ses_send),
     web.get('/sns/certs/', aws_certs),
     web.get('/xml-error/', xml_error),
+    web.route('*', '/', dynamodb),
 ]

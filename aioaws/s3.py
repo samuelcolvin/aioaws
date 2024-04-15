@@ -5,7 +5,7 @@ import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from itertools import chain
-from typing import TYPE_CHECKING, Any, AsyncIterable, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, AsyncIterable, Dict, List, Literal, Optional, Union
 from xml.etree import ElementTree
 
 from httpx import URL, AsyncClient
@@ -144,7 +144,7 @@ class S3Client:
         xml_root = ElementTree.fromstring(xmlns_re.sub(b'', r.content))
         return [k.find('Key').text for k in xml_root]  # type: ignore
 
-    def signed_download_url(self, path: str, version: Optional[str] = None, max_age: int = 30) -> str:
+    def signed_download_url(self, path: str, version: Optional[str] = None, max_age: int = 30, method: Literal['GET', 'HEAD'] = 'GET') -> str:
         """
         Sign a path to authenticate download.
 
@@ -154,7 +154,7 @@ class S3Client:
         """
         assert not path.startswith('/'), 'path should not start with /'
         url = URL(f'{self._aws_client.endpoint}/{path}')
-        url = self._aws_client.add_signed_download_params('GET', url, max_age)
+        url = self._aws_client.add_signed_download_params(method, url, max_age)
         if version:
             url = url.copy_add_param('v', version)
         return str(url)

@@ -3,6 +3,7 @@ import json
 import logging
 import mimetypes
 import re
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime
 from email.encoders import encode_base64
@@ -10,12 +11,12 @@ from email.message import EmailMessage
 from email.mime.base import MIMEBase
 from email.utils import formataddr
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Literal, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Literal, Optional
 from urllib.parse import urlencode
 
 import aiofiles
 from httpx import AsyncClient
-from pydantic.datetime_parse import parse_datetime
+from pydantic import TypeAdapter
 
 from . import sns
 from .core import AwsClient
@@ -37,21 +38,21 @@ class SesConfig:
 
 @dataclass
 class SesAttachment:
-    file: Union[Path, bytes]
-    name: Optional[str] = None
-    mime_type: Optional[str] = None
-    content_id: Optional[str] = None
+    file: Path | bytes
+    name: str | None = None
+    mime_type: str | None = None
+    content_id: str | None = None
 
 
 @dataclass
 class SesRecipient:
     email: str
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
+    first_name: str | None = None
+    last_name: str | None = None
 
     def display(self) -> str:
         if self.first_name and self.last_name:
-            name: Optional[str] = f'{self.first_name} {self.last_name}'
+            name: str | None = f'{self.first_name} {self.last_name}'
         elif self.first_name or self.last_name:
             name = self.first_name or self.last_name
         else:
@@ -68,29 +69,28 @@ class SesClient:
 
     async def send_email(
         self,
-        e_from: Union[str, SesRecipient],
+        e_from: str | SesRecipient,
         subject: str,
-        to: Optional[List[Union[str, SesRecipient]]] = None,
+        to: list[str | SesRecipient] | None = None,
         text_body: str = '',
-        html_body: Optional[str] = None,
+        html_body: str | None = None,
         *,
-        cc: Optional[List[Union[str, SesRecipient]]] = None,
-        bcc: Optional[List[Union[str, SesRecipient]]] = None,
-        attachments: Optional[List[SesAttachment]] = None,
-        unsubscribe_link: Optional[str] = None,
-        configuration_set: Optional[str] = None,
-        message_tags: Optional[Dict[str, Any]] = None,
-        smtp_headers: Optional[Dict[str, str]] = None,
+        cc: list[str | SesRecipient] | None = None,
+        bcc: list[str | SesRecipient] | None = None,
+        attachments: list[SesAttachment] | None = None,
+        unsubscribe_link: str | None = None,
+        configuration_set: str | None = None,
+        message_tags: dict[str, Any] | None = None,
+        smtp_headers: dict[str, str] | None = None,
     ) -> str:
-
         email_msg = EmailMessage()
         email_msg['Subject'] = subject
         e_from_recipient = as_recipient(e_from)
         email_msg['From'] = e_from_recipient.display()
 
-        to_r: List[SesRecipient] = []
-        cc_r: List[SesRecipient] = []
-        bcc_r: List[SesRecipient] = []
+        to_r: list[SesRecipient] = []
+        cc_r: list[SesRecipient] = []
+        bcc_r: list[SesRecipient] = []
         if to:
             to_r = [as_recipient(r) for r in to]
             email_msg['To'] = ', '.join(r.display() for r in to_r)
@@ -133,9 +133,9 @@ class SesClient:
         e_from: str,
         email_msg: EmailMessage,
         *,
-        to: List[SesRecipient],
-        cc: List[SesRecipient],
-        bcc: List[SesRecipient],
+        to: list[SesRecipient],
+        cc: list[SesRecipient],
+        bcc: list[SesRecipient],
     ) -> str:
         if not any((to, cc, bcc)):
             raise TypeError('either "to", "cc", or "bcc" must be provided when sending emails')
@@ -164,14 +164,14 @@ class SesClient:
         return m.group(1).decode()
 
 
-def as_recipient(r: Union[str, SesRecipient]) -> SesRecipient:
+def as_recipient(r: str | SesRecipient) -> SesRecipient:
     if isinstance(r, SesRecipient):
         return r
     else:
         return SesRecipient(r)
 
 
-async def prepare_attachment(a: SesAttachment) -> Tuple[MIMEBase, int]:
+async def prepare_attachment(a: SesAttachment) -> tuple[MIMEBase, int]:
     filename = a.name
     if filename is None and isinstance(a.file, Path):
         filename = a.file.name
@@ -200,19 +200,22 @@ async def prepare_attachment(a: SesAttachment) -> Tuple[MIMEBase, int]:
     return msg, len(data)
 
 
+DateTimeParser = TypeAdapter(datetime)
+
+
 @dataclass
 class SesWebhookInfo:
     message_id: str
     event_type: Literal['send', 'delivery', 'open', 'click', 'bounce', 'complaint']
-    timestamp: Optional[datetime]
+    timestamp: datetime | None
     unsubscribe: bool
-    details: Dict[str, Any]
-    tags: Dict[str, str]
-    full_message: Dict[str, Any]
-    request_data: Dict[str, Any]
+    details: dict[str, Any]
+    tags: dict[str, str]
+    full_message: dict[str, Any]
+    request_data: dict[str, Any]
 
     @classmethod
-    async def build(cls, request_body: Union[str, bytes], http_client: AsyncClient) -> Optional['SesWebhookInfo']:
+    async def build(cls, request_body: str | bytes, http_client: AsyncClient) -> Optional['SesWebhookInfo']:
         payload = await sns.verify_webhook(request_body, http_client)
         if not payload:
             # happens legitimately for subscription confirmation webhooks
@@ -248,7 +251,7 @@ class SesWebhookInfo:
         return cls(
             message_id=message_id,
             event_type=event_type,
-            timestamp=timestamp and parse_datetime(timestamp),
+            timestamp=timestamp and DateTimeParser.validate_strings(timestamp),
             unsubscribe=unsubscribe,
             tags={k: v[0] for k, v in tags.items()},
             details=details,

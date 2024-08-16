@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 
 import pytest
 from dirty_equals import IsNow, IsStr
-from foxglove.test_server import DummyServer
+from foxglove.testing import DummyServer
 from httpx import AsyncClient
 
 from aioaws.core import RequestError
@@ -109,7 +109,7 @@ async def test_list(client: AsyncClient):
     s3 = S3Client(client, S3Config('testing', 'testing', 'testing', 'testing'))
     files = [f async for f in s3.list()]
     assert len(files) == 3
-    assert files[0].dict() == dict(
+    assert files[0].model_dump() == dict(
         key='/foo.html',
         last_modified=datetime(2032, 1, 1, 12, 34, 56, tzinfo=timezone.utc),
         size=123,
@@ -169,7 +169,7 @@ async def test_list_bad(client: AsyncClient):
 
 def test_to_key():
     assert to_key('foobar') == 'foobar'
-    assert to_key(S3File.construct(key='spam')) == 'spam'
+    assert to_key(S3File.model_construct(key='spam')) == 'spam'
     with pytest.raises(TypeError, match='must be a string or S3File object'):
         to_key(123)
 
@@ -230,19 +230,19 @@ async def test_real_upload(real_aws: AWS):
         await s3.upload(path, b'this is a test')
 
         try:
-            files = [f.dict() async for f in s3.list(f'{run_prefix}/')]
+            files = [f.model_dump() async for f in s3.list(f'{run_prefix}/')]
             # debug(files)
             assert len(files) == 1
             assert files[0] == {
                 'key': path,
-                'last_modified': IsNow(delta=10, tz='utc'),
+                'last_modified': IsNow(delta=10, tz='UTC'),
                 'size': 14,
                 'e_tag': '54b0c58c7ce9f2a8b551351102ee0938',
                 'storage_class': 'STANDARD',
             }
         finally:
             assert await s3.delete(path) == [path]
-            assert [f.dict() async for f in s3.list(f'{run_prefix}/')] == []
+            assert [f.model_dump() async for f in s3.list(f'{run_prefix}/')] == []
 
 
 @pytest.mark.asyncio

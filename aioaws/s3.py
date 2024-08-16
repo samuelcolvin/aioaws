@@ -1,15 +1,17 @@
 import base64
+import builtins
 import json
 import mimetypes
 import re
+from collections.abc import AsyncIterable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from itertools import chain
-from typing import TYPE_CHECKING, Any, AsyncIterable, Dict, List, Literal, Optional, Union
+from typing import TYPE_CHECKING, Any, Literal
 from xml.etree import ElementTree
 
 from httpx import URL, AsyncClient
-from pydantic import BaseModel, validator
+from pydantic import BaseModel, ConfigDict, field_validator
 
 from ._utils import ManyTasks, pretty_xml, utcnow
 from .core import AwsClient, RequestError
@@ -33,24 +35,24 @@ class S3Config:
     aws_region: str
     aws_s3_bucket: str
     # custom host to connect with
-    aws_host: Optional[str] = None
+    aws_host: str | None = None
+
+
+def alias_generator(string: str) -> str:
+    return ''.join(word.capitalize() for word in string.split('_'))
 
 
 class S3File(BaseModel):
+    model_config = ConfigDict(alias_generator=alias_generator)
     key: str
     last_modified: datetime
     size: int
     e_tag: str
     storage_class: str
 
-    @validator('e_tag')
+    @field_validator('e_tag')
     def set_ts_now(cls, v: str) -> str:
         return v.strip('"')
-
-    class Config:
-        @classmethod
-        def alias_generator(cls, string: str) -> str:
-            return ''.join(word.capitalize() for word in string.split('_'))
 
 
 class S3Client:
@@ -60,7 +62,7 @@ class S3Client:
         self._aws_client = AwsClient(http_client, config, 's3')
         self._config = config
 
-    async def list(self, prefix: Optional[str] = None) -> AsyncIterable[S3File]:
+    async def list(self, prefix: str | None = None) -> AsyncIterable[S3File]:
         """
         List S3 files with the given prefix.
 
@@ -75,7 +77,7 @@ class S3Client:
 
             xml_root = ElementTree.fromstring(xmlns_re.sub(b'', r.content))
             for c in xml_root.findall('Contents'):
-                yield S3File.parse_obj({v.tag: v.text for v in c})
+                yield S3File.model_validate({v.tag: v.text for v in c})
             if (t := xml_root.find('IsTruncated')) is not None and t.text == 'false':
                 break
 
@@ -84,7 +86,7 @@ class S3Client:
             else:
                 raise RuntimeError(f'unexpected response from S3:\n{pretty_xml(r.content)}')
 
-    async def delete(self, *files: Union[str, S3File]) -> List[str]:
+    async def delete(self, *files: str | S3File) -> builtins.list[str]:
         """
         Delete one or more files, based on keys.
         """
@@ -96,7 +98,7 @@ class S3Client:
         results = await tasks.finish()
         return list(chain(*results))
 
-    async def upload(self, file_path: str, content: bytes, *, content_type: Optional[str] = None) -> None:
+    async def upload(self, file_path: str, content: bytes, *, content_type: str | None = None) -> None:
         assert not file_path.startswith('/'), 'file_path must not start with /'
         parts = file_path.rsplit('/', 1)
 
@@ -108,11 +110,11 @@ class S3Client:
             filename=parts[-1],
             content_type=content_type or 'application/octet-stream',
             size=len(content),
-            expires=datetime.utcnow() + timedelta(minutes=30),
+            expires=utcnow() + timedelta(minutes=30),
         )
         await self._aws_client.raw_post(d['url'], expected_status=204, data=d['fields'], files={'file': content})
 
-    async def delete_recursive(self, prefix: Optional[str]) -> List[str]:
+    async def delete_recursive(self, prefix: str | None) -> builtins.list[str]:
         """
         Delete files starting with a specific prefix.
         """
@@ -129,7 +131,7 @@ class S3Client:
         results = await tasks.finish()
         return list(chain(*results))
 
-    async def _delete_1000_files(self, *files: Union[str, S3File]) -> List[str]:
+    async def _delete_1000_files(self, *files: str | S3File) -> builtins.list[str]:
         """
         https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteObjects.html
         """
@@ -144,7 +146,7 @@ class S3Client:
         xml_root = ElementTree.fromstring(xmlns_re.sub(b'', r.content))
         return [k.find('Key').text for k in xml_root]  # type: ignore
 
-    def signed_download_url(self, path: str, version: Optional[str] = None, max_age: int = 30, method: Literal['GET', 'HEAD'] = 'GET') -> str:
+    def signed_download_url(self, path: str, version: str | None = None, max_age: int = 30, method: Literal['GET', 'HEAD'] = 'GET') -> str:
         """
         Sign a path to authenticate download.
 
@@ -159,7 +161,7 @@ class S3Client:
             url = url.copy_add_param('v', version)
         return str(url)
 
-    async def download(self, file: Union[str, S3File], version: Optional[str] = None) -> bytes:
+    async def download(self, file: str | S3File, version: str | None = None) -> bytes:
         if isinstance(file, str):
             path = file
         else:
@@ -180,8 +182,8 @@ class S3Client:
         content_type: str,
         size: int,
         content_disp: bool = True,
-        expires: Optional[datetime] = None,
-    ) -> Dict[str, Any]:
+        expires: datetime | None = None,
+    ) -> dict[str, Any]:
         """
         https://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-post-example.html
         """
@@ -219,7 +221,7 @@ class S3Client:
         return dict(url=f'{self._aws_client.endpoint}/', fields=fields)
 
 
-def to_key(sf: Union[S3File, str]) -> str:
+def to_key(sf: S3File | str) -> str:
     if isinstance(sf, str):
         return sf
     elif isinstance(sf, S3File):

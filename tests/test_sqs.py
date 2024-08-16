@@ -1,4 +1,4 @@
-from typing import AsyncGenerator, List, Optional
+from collections.abc import AsyncGenerator
 
 import pytest
 from httpx import AsyncClient, MockTransport, Request, Response
@@ -9,7 +9,7 @@ pytestmark = pytest.mark.asyncio
 
 
 async def test_poll_from_queue_url() -> None:
-    async def stateful_handler() -> AsyncGenerator[Optional[Response], Request]:
+    async def stateful_handler() -> AsyncGenerator[Response | None, Request]:
         req = yield None
         request_url = req.url.copy_with(params={})
         assert request_url == queue_url
@@ -57,7 +57,7 @@ async def test_poll_from_queue_url() -> None:
         client=client,
     )
 
-    messages: List[SQSMessage] = []
+    messages: list[SQSMessage] = []
 
     # receive 1 batch of messages
     async for received_messages in sqs.poll():
@@ -77,7 +77,7 @@ async def test_poll_from_queue_url() -> None:
 
 
 async def test_change_visbility_timeout() -> None:
-    async def stateful_handler() -> AsyncGenerator[Optional[Response], Request]:
+    async def stateful_handler() -> AsyncGenerator[Response | None, Request]:
         req = yield None
         request_url = req.url.copy_with(params={})
         assert request_url == queue_url
@@ -150,7 +150,7 @@ async def test_change_visbility_timeout() -> None:
 
 
 async def test_delete_message() -> None:
-    async def stateful_handler() -> AsyncGenerator[Optional[Response], Request]:
+    async def stateful_handler() -> AsyncGenerator[Response | None, Request]:
         req = yield None
         request_url = req.url.copy_with(params={})
         assert request_url == queue_url
@@ -223,7 +223,7 @@ async def test_delete_message() -> None:
 
 
 async def test_get_queue_url() -> None:
-    async def stateful_handler() -> AsyncGenerator[Optional[Response], Request]:
+    async def stateful_handler() -> AsyncGenerator[Response | None, Request]:
         req = yield None
         # check that we request the queue url
         request_url = req.url.copy_with(params={})

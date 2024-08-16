@@ -1,6 +1,7 @@
+from collections.abc import AsyncIterator, Iterable, Mapping
 from contextlib import AsyncExitStack, asynccontextmanager
 from dataclasses import dataclass
-from typing import Any, AsyncIterator, Iterable, Mapping, Optional, Union
+from typing import Any
 
 from httpx import AsyncClient, Timeout
 from pydantic import BaseModel, Field
@@ -23,8 +24,8 @@ class SQSMessage(BaseModel):
 
 
 class PollConfig(BaseModel):
-    wait_time: int = Field(10, gt=0)
-    max_messages: int = Field(1, ge=1, le=10)
+    wait_time: int = Field(default=10, gt=0)
+    max_messages: int = Field(default=1, ge=1, le=10)
 
 
 @dataclass
@@ -48,7 +49,7 @@ class SQSClient:
         *,
         client: AsyncClient,
     ) -> None:
-        self._queue_name_or_url: Union[_QueueName, _QueueURL]
+        self._queue_name_or_url: _QueueName | _QueueURL
         if queue_name_or_url[:4] == 'http':
             self._queue_name_or_url = _QueueURL(queue_name_or_url)
         else:
@@ -94,7 +95,7 @@ class SQSClient:
     async def poll(
         self,
         *,
-        config: Optional[PollConfig] = None,
+        config: PollConfig | None = None,
     ) -> AsyncIterator[Iterable[SQSMessage]]:
         config = config or PollConfig()
         queue_url = await self._get_queue_url()
@@ -119,7 +120,7 @@ class SQSClient:
             )
             resp.raise_for_status()
             yield [
-                SQSMessage.construct(
+                SQSMessage.model_construct(
                     message_id=message_data['MessageId'],
                     receipt_handle=message_data['ReceiptHandle'],
                     md5_of_body=message_data['MD5OfBody'],
@@ -167,7 +168,7 @@ async def create_sqs_client(
     queue: str,
     auth: AWSAuthConfig,
     *,
-    client: Optional[AsyncClient] = None,
+    client: AsyncClient | None = None,
 ) -> AsyncIterator[SQSClient]:
     async with AsyncExitStack() as stack:
         if client is None:

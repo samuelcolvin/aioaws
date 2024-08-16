@@ -1,26 +1,36 @@
 .DEFAULT_GOAL := all
-isort = isort aioaws tests
-black = black aioaws tests
-ruff = ruff aioaws tests
 
 .PHONY: install
 install:
-	python -m pip install -U setuptools pip
-	pip install -U -r requirements.txt
-	pip install -U -r tests/requirements-linting.txt
-	pip install -e .
+	pip install -U pip pre-commit pip-tools
+	pip install -r requirements/all.txt
+	pre-commit install
+
+.PHONY: refresh-lockfiles
+refresh-lockfiles:
+	@echo "Replacing requirements/*.txt files using pip-compile"
+	find requirements/ -name '*.txt' ! -name 'all.txt' -type f -delete
+	make update-lockfiles
+
+.PHONY: update-lockfiles
+update-lockfiles:
+	@echo "Updating requirements/*.txt files using pip-compile"
+	pip-compile --strip-extras -q -o requirements/linting.txt requirements/linting.in
+	pip-compile --strip-extras -q -o requirements/tests.txt -c requirements/linting.txt requirements/tests.in
+	pip-compile --strip-extras -q -o requirements/pyproject.txt \
+		-c requirements/linting.txt -c requirements/tests.txt \
+		pyproject.toml
+	pip install --dry-run -r requirements/all.txt
 
 .PHONY: format
 format:
-	$(isort)
-	$(black)
-	$(ruff) --fix --exit-zero
+	ruff check --fix-only aioaws tests
+	ruff format aioaws tests
 
 .PHONY: lint
 lint:
-	$(ruff)
-	$(isort) --check-only --df
-	$(black) --check --diff
+	ruff check aioaws tests
+	ruff format --check aioaws tests
 
 .PHONY: mypy
 mypy:

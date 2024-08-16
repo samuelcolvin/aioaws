@@ -1,0 +1,12 @@
+aiohttp
+async-timeout
+coverage[toml]
+foxglove-web
+dirty-equals
+pillow
+pygments
+pytest
+pytest-mock
+pytest-pretty
+pytest-asyncio
+requests

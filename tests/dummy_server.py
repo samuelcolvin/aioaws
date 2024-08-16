@@ -1,5 +1,4 @@
 import re
-from typing import List
 from xml.etree import ElementTree
 
 from aiohttp import web
@@ -44,7 +43,7 @@ async def s3_root(request: web.Request):
     prefix = request.url.query.get('prefix', '')
     next_token: str = ''
     truncated: bool = False
-    files: List[str]
+    files: list[str]
     if prefix == 'broken':
         files = ['/broken/foo.png', '/broken/bar.png']
         truncated = True

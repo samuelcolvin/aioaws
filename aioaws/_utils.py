@@ -1,6 +1,7 @@
 import asyncio
+from collections.abc import Coroutine, Iterable
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Any, Coroutine, Iterable, List, Optional
+from typing import TYPE_CHECKING, Any
 
 from httpx import Response
 
@@ -34,7 +35,7 @@ def to_unix_s(dt: datetime) -> int:
 
 
 def utcnow() -> datetime:
-    return datetime.utcnow().replace(tzinfo=timezone.utc)
+    return datetime.now(tz=timezone.utc)
 
 
 class ManyTasks:
@@ -45,9 +46,9 @@ class ManyTasks:
     __slots__ = '_tasks'
 
     def __init__(self) -> None:
-        self._tasks: List[asyncio.Task[Any]] = []
+        self._tasks: list[asyncio.Task[Any]] = []
 
-    def add(self, coroutine: Coroutine[Any, Any, List[str]], *, name: Optional[str] = None) -> None:
+    def add(self, coroutine: Coroutine[Any, Any, list[str]], *, name: str | None = None) -> None:
         task = asyncio.create_task(coroutine, name=name)
         self._tasks.append(task)
 
@@ -67,7 +68,13 @@ def pretty_xml(response_xml: bytes) -> str:
 
 
 def pretty_response(r: Response) -> None:  # pragma: no cover
-    from devtools import debug
+    try:
+        from devtools import debug
+    except ImportError:
+        from pprint import pprint
+
+        def debug(**kwargs: Any) -> None:
+            pprint(kwargs)
 
     debug(
         status=r.status_code,

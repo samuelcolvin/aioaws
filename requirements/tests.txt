@@ -20,6 +20,8 @@ anyio==4.4.0
     #   starlette
 arq==0.26.0
     # via foxglove-web
+async-timeout==4.0.3
+    # via -r requirements/tests.in
 asyncpg==0.29.0
     # via foxglove-web
 attrs==24.2.0
@@ -32,15 +34,20 @@ certifi==2024.7.4
     # via
     #   httpcore
     #   httpx
+    #   requests
     #   sentry-sdk
 cffi==1.17.0
     # via pycares
+charset-normalizer==3.3.2
+    # via requests
 click==8.1.7
     # via
     #   arq
     #   typer
     #   uvicorn
 coverage==7.6.1
+    # via -r requirements/tests.in
+dirty-equals==0.8.0
     # via -r requirements/tests.in
 fastapi==0.112.1
     # via foxglove-web
@@ -64,6 +71,7 @@ idna==3.7
     # via
     #   anyio
     #   httpx
+    #   requests
     #   yarl
 iniconfig==2.0.0
     # via pytest
@@ -116,6 +124,8 @@ python-dotenv==1.0.1
     # via pydantic-settings
 redis==4.6.0
     # via arq
+requests==2.32.3
+    # via -r requirements/tests.in
 rich==13.7.1
     # via
     #   pytest-pretty
@@ -140,7 +150,9 @@ typing-extensions==4.12.2
     #   pydantic-core
     #   typer
 urllib3==2.2.2
-    # via sentry-sdk
+    # via
+    #   requests
+    #   sentry-sdk
 uvicorn==0.30.6
     # via foxglove-web
 yarl==1.9.4

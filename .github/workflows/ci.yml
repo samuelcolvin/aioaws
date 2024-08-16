@@ -9,6 +9,24 @@ on:
   pull_request: {}
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - run: pip install -r requirements/linting.txt
+
+    - uses: pre-commit/action@v3.0.0
+      with:
+        extra_args: --all-files
+      env:
+        SKIP: no-commit-to-branch
+
   test:
     name: test py${{ matrix.python-version }} on ${{ matrix.os }}
     strategy:
@@ -32,9 +50,10 @@ jobs:
         python-version: ${{ matrix.python-version }}
         allow-prereleases: true
 
-    - run: pip install -r requirements/tests.txt
-    - run: pip install .
-    - run: pip freeze
+    - run: pip install uv
+    - run: uv pip install -r requirements/tests.txt
+    - run: uv pip install .
+    - run: uv pip freeze
 
     - name: test
       run: make test
@@ -48,22 +67,6 @@ jobs:
       with:
         file: ./coverage.xml
         env_vars: PYTHON,OS
-
-  lint:
-    runs-on: ubuntu-latest
-
-    steps:
-    - uses: actions/checkout@v4
-
-    - uses: actions/setup-python@v5
-      with:
-        python-version: '3.12'
-
-    - run: pip install -r requirements/linting.txt
-    - run: pip install .
-
-    - run: make lint
-    - run: make mypy
 
   check:  # This job does nothing and is only used for the branch protection
     if: always()

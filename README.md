@@ -184,7 +184,7 @@ async def ses_webhook(request: Request):
     except SnsWebhookError as e:
         debug(message=e.message, details=e.details, headers=e.headers)
         raise ...
-    
+
     debug(webhook_info)
     ...
 ```

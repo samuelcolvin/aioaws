@@ -2,8 +2,8 @@
 
 .PHONY: install
 install:
-	pip install -U pip pre-commit pip-tools
-	pip install -r requirements/all.txt
+	pip install -U pip pre-commit pip-tools uv
+	uv pip install -r requirements/all.txt
 	pre-commit install
 
 .PHONY: refresh-lockfiles

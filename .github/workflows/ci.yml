@@ -50,10 +50,9 @@ jobs:
         python-version: ${{ matrix.python-version }}
         allow-prereleases: true
 
-    - run: pip install uv
-    - run: uv pip install -r requirements/tests.txt
-    - run: uv pip install .
-    - run: uv pip freeze
+    - run: pip install -r requirements/tests.txt
+    - run: pip install .
+    - run: pip freeze
 
     - name: test
       run: make test

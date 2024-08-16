@@ -8,7 +8,7 @@ from httpx import Response
 if TYPE_CHECKING:
     from ._types import BaseConfigProtocol
 
-__all__ = 'get_config_attr', 'to_unix_s', 'utcnow', 'ManyTasks', 'pretty_xml', 'pretty_response'
+__all__ = 'get_config_attr', 'utcnow', 'ManyTasks', 'pretty_xml', 'pretty_response'
 
 EPOCH = datetime(1970, 1, 1)
 EPOCH_TZ = EPOCH.replace(tzinfo=timezone.utc)
@@ -24,14 +24,6 @@ def get_config_attr(config: 'BaseConfigProtocol', name: str) -> str:
         return s
     else:
         raise TypeError(f'config.{name} must be a string not {s.__class__.__name__}')
-
-
-def to_unix_s(dt: datetime) -> int:
-    if dt.utcoffset() is None:
-        diff = dt - EPOCH
-    else:
-        diff = dt - EPOCH_TZ
-    return int(round(diff.total_seconds()))
 
 
 def utcnow() -> datetime:

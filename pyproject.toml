@@ -67,7 +67,7 @@ filterwarnings = [
 ]
 
 [tool.coverage.run]
-source = ["aioasws"]
+source = ["aioaws"]
 branch = true
 
 [tool.coverage.report]

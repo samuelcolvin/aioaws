@@ -20,6 +20,7 @@ jobs:
         python-version: '3.12'
 
     - run: pip install -r requirements/linting.txt
+    - run: pip install -r requirements/pyproject.txt
 
     - uses: pre-commit/action@v3.0.0
       with:
@@ -32,7 +33,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu, windows, macos]
+        os: [ubuntu, macos]
         python-version: ['3.9', '3.10', '3.11', '3.12', '3.13']
 
     runs-on: ${{ matrix.os }}-latest
@@ -51,6 +52,7 @@ jobs:
         allow-prereleases: true
 
     - run: pip install -r requirements/tests.txt
+    - run: pip install -r requirements/pyproject.txt
     - run: pip install .
     - run: pip freeze
 

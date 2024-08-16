@@ -146,7 +146,9 @@ class S3Client:
         xml_root = ElementTree.fromstring(xmlns_re.sub(b'', r.content))
         return [k.find('Key').text for k in xml_root]  # type: ignore
 
-    def signed_download_url(self, path: str, version: str | None = None, max_age: int = 30, method: Literal['GET', 'HEAD'] = 'GET') -> str:
+    def signed_download_url(
+        self, path: str, version: str | None = None, max_age: int = 30, method: Literal['GET', 'HEAD'] = 'GET'
+    ) -> str:
         """
         Sign a path to authenticate download.
 

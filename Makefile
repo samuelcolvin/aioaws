@@ -39,7 +39,7 @@ mypy:
 
 .PHONY: test
 test:
-	pytest --cov=aioaws
+	coverage run -m pytest
 
 .PHONY: testcov
 testcov: test

@@ -1,3 +1,5 @@
 pyright
 pydantic
 ruff
+types-aiofiles
+mypy

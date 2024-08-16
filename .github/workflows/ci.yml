@@ -15,7 +15,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu, windows, macos]
-        python-version: ['3.8', '3.9', '3.10']
+        python-version: ['3.9', '3.10', '3.11', '3.12', '3.13']
 
     runs-on: ${{ matrix.os }}-latest
 
@@ -24,15 +24,15 @@ jobs:
       OS: ${{ matrix.os }}
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
 
     - name: set up python
-      uses: actions/setup-python@v1
+      uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
+        allow-prereleases: true
 
-    - run: pip install -U wheel
-    - run: pip install -r tests/requirements.txt
+    - run: pip install -r requirements/tests.txt
     - run: pip install .
     - run: pip freeze
 
@@ -44,7 +44,7 @@ jobs:
 
     - run: coverage xml
 
-    - uses: codecov/codecov-action@v1.2.1
+    - uses: codecov/codecov-action@v3
       with:
         file: ./coverage.xml
         env_vars: PYTHON,OS
@@ -53,48 +53,58 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
 
-    - uses: actions/setup-python@v1
+    - uses: actions/setup-python@v5
       with:
-        python-version: '3.9'
+        python-version: '3.12'
 
-    - run: pip install -U pip wheel
-    - run: pip install -r tests/requirements-linting.txt
+    - run: pip install -r requirements/linting.txt
     - run: pip install .
 
     - run: make lint
     - run: make mypy
 
-  deploy:
-    needs:
-      - test
-      - lint
-    if: "success() && startsWith(github.ref, 'refs/tags/')"
+  check:  # This job does nothing and is only used for the branch protection
+    if: always()
+    needs: [lint, test]
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v2
+      - name: Decide whether the needed jobs succeeded or failed
+        uses: re-actors/alls-green@release/v1
+        id: all-green
+        with:
+          jobs: ${{ toJSON(needs) }}
+
+  release:
+    needs: [check]
+    if: "success() && startsWith(github.ref, 'refs/tags/')"
+    runs-on: ubuntu-latest
+    environment: release
+
+    permissions:
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
 
       - name: set up python
-        uses: actions/setup-python@v1
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.9'
+          python-version: '3.12'
 
       - name: install
-        run: |
-          pip install -U pip setuptools wheel twine
-          pip install .
+        run: pip install -U build
 
-      - name: set version
-        run: VERSION_PATH='aioaws/version.py' python <(curl -Ls https://git.io/JT3rm)
+      - name: check version
+        id: check-version
+        uses: samuelcolvin/check-python-version@v3.2
+        with:
+          version_file_path: 'aioaws/version.py'
 
-      - run: python setup.py sdist bdist_wheel
+      - name: build
+        run: python -m build
 
-      - run: twine check dist/*
-
-      - name: upload to pypi
-        run: twine upload dist/*
-        env:
-          TWINE_USERNAME: __token__
-          TWINE_PASSWORD: ${{ secrets.pypi_token }}
+      - name: Upload package to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1

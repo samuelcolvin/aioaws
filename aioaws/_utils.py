@@ -48,7 +48,7 @@ class ManyTasks:
         self._tasks: List[asyncio.Task[Any]] = []
 
     def add(self, coroutine: Awaitable[Any], *, name: Optional[str] = None) -> None:
-        task = asyncio.create_task(coroutine, name=name)
+        task = asyncio.create_task(coroutine, name=name)  # type: ignore
         self._tasks.append(task)
 
     async def finish(self) -> Iterable[Any]:
@@ -58,7 +58,13 @@ class ManyTasks:
 def pretty_response(r: Response) -> None:  # pragma: no cover
     from xml.etree import ElementTree
 
-    from devtools import debug
+    try:
+        from devtools import debug
+    except ImportError:
+        from pprint import pprint
+
+        def debug(**kwargs: Any) -> None:
+            pprint(kwargs)
 
     xml_root = ElementTree.fromstring(r.content)
     debug(

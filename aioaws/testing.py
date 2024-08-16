@@ -21,6 +21,7 @@ def ses_email_data(data: Dict[str, str]) -> Dict[str, Any]:
     d['payload'] = []
     for part in msg.walk():
         if payload := part.get_payload(decode=True):
+            assert isinstance(payload, bytes), f'expected payload to be bytes, got {type(payload)}'
             part_info = {'Content-Type': part.get_content_type(), 'payload': payload.decode().replace('\r\n', '\n')}
             for key in 'Content-Disposition', 'Content-ID':
                 if cd := part[key]:

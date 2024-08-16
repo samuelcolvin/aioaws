@@ -3,9 +3,9 @@ import secrets
 from datetime import datetime, timezone
 
 import pytest
+from dirty_equals import IsNow
 from foxglove.testing import DummyServer
 from httpx import AsyncClient
-from dirty_equals import IsNow
 
 from aioaws.core import RequestError
 from aioaws.s3 import S3Client, S3Config, S3File, to_key

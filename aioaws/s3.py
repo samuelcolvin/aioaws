@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any, AsyncIterable, Dict, List, Optional, Unio
 from xml.etree import ElementTree
 
 from httpx import URL, AsyncClient
-from pydantic import BaseModel, field_validator, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_validator
 
 from ._utils import ManyTasks, utcnow
 from .core import AwsClient

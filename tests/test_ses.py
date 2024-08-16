@@ -4,9 +4,9 @@ import re
 from datetime import datetime
 
 import pytest
+from dirty_equals import IsStr
 from foxglove.testing import DummyServer
 from httpx import AsyncClient
-from dirty_equals import IsStr
 
 from aioaws.ses import SesAttachment, SesClient, SesConfig, SesRecipient, SesWebhookInfo
 from aioaws.sns import SnsWebhookError
@@ -78,22 +78,22 @@ async def test_send_email_attachment(client: AsyncClient, aws: DummyServer):
 
     assert re.fullmatch(
         (
-            br'Subject: test with attachment =\?utf-8\?b\?wqPCo8Kj\?= more\n'
-            br'From: testing@sender\.com\n'
-            br'To: testing@recipient\.com\n'
-            br'MIME-Version: 1\.0\n'
-            br'Content-Type: multipart/mixed; boundary="===============(\d+)=="\n\n'
-            br'--===============\1==\n'
-            br'Content-Type: text/plain; charset="utf-8"\n'
-            br'Content-Transfer-Encoding: 7bit\n\n'
-            br'this is a test email\n\n'
-            br'--===============(\d+)==\n'
-            br'Content-Type: text/plain\n'
-            br'MIME-Version: 1\.0\n'
-            br'Content-Transfer-Encoding: base64\n'
-            br'Content-Disposition: attachment; filename="testing\.txt"\n\n'
-            br'c29tZSBiaW5hcnkgZGF0YQ==\n\n'
-            br'--===============\2==--\n'
+            rb'Subject: test with attachment =\?utf-8\?b\?wqPCo8Kj\?= more\n'
+            rb'From: testing@sender\.com\n'
+            rb'To: testing@recipient\.com\n'
+            rb'MIME-Version: 1\.0\n'
+            rb'Content-Type: multipart/mixed; boundary="===============(\d+)=="\n\n'
+            rb'--===============\1==\n'
+            rb'Content-Type: text/plain; charset="utf-8"\n'
+            rb'Content-Transfer-Encoding: 7bit\n\n'
+            rb'this is a test email\n\n'
+            rb'--===============(\d+)==\n'
+            rb'Content-Type: text/plain\n'
+            rb'MIME-Version: 1\.0\n'
+            rb'Content-Transfer-Encoding: base64\n'
+            rb'Content-Disposition: attachment; filename="testing\.txt"\n\n'
+            rb'c29tZSBiaW5hcnkgZGF0YQ==\n\n'
+            rb'--===============\2==--\n'
         ),
         raw_body,
     )
@@ -189,31 +189,31 @@ async def test_attachment_email_with_html(client: AsyncClient, aws: DummyServer)
     raw_body = base64.b64decode(eml['body']['RawMessage.Data'].encode())
     assert re.fullmatch(
         (
-            br'Subject: the subject\n'
-            br'From: testing@sender\.com\n'
-            br'To: testing@recipient\.com\n'
-            br'MIME-Version: 1\.0\n'
-            br'Content-Type: multipart/mixed; boundary="===============(\d+)=="\n\n'
-            br'--===============\1==\n'
-            br'Content-Type: multipart/alternative;\n'
-            br' boundary="===============(\d+)=="\n\n'
-            br'--===============\2==\n'
-            br'Content-Type: text/plain; charset="utf-8"\n'
-            br'Content-Transfer-Encoding: 7bit\n\n'
-            br'this is a test email\n\n'
-            br'--===============\2==\n'
-            br'Content-Type: text/html; charset="utf-8"\n'
-            br'Content-Transfer-Encoding: 7bit\n'
-            br'MIME-Version: 1\.0\n\n'
-            br'this is the <b>html body</b>\.\n\n'
-            br'--===============\2==--\n\n'
-            br'--===============\1==\n'
-            br'Content-Type: text/plain\n'
-            br'MIME-Version: 1\.0\n'
-            br'Content-Transfer-Encoding: base64\n'
-            br'Content-Disposition: attachment; filename="testing\.txt"\n\n'
-            br'c29tZSBhdHRhY2htZW50\n\n'
-            br'--===============\1==--\n'
+            rb'Subject: the subject\n'
+            rb'From: testing@sender\.com\n'
+            rb'To: testing@recipient\.com\n'
+            rb'MIME-Version: 1\.0\n'
+            rb'Content-Type: multipart/mixed; boundary="===============(\d+)=="\n\n'
+            rb'--===============\1==\n'
+            rb'Content-Type: multipart/alternative;\n'
+            rb' boundary="===============(\d+)=="\n\n'
+            rb'--===============\2==\n'
+            rb'Content-Type: text/plain; charset="utf-8"\n'
+            rb'Content-Transfer-Encoding: 7bit\n\n'
+            rb'this is a test email\n\n'
+            rb'--===============\2==\n'
+            rb'Content-Type: text/html; charset="utf-8"\n'
+            rb'Content-Transfer-Encoding: 7bit\n'
+            rb'MIME-Version: 1\.0\n\n'
+            rb'this is the <b>html body</b>\.\n\n'
+            rb'--===============\2==--\n\n'
+            rb'--===============\1==\n'
+            rb'Content-Type: text/plain\n'
+            rb'MIME-Version: 1\.0\n'
+            rb'Content-Transfer-Encoding: base64\n'
+            rb'Content-Disposition: attachment; filename="testing\.txt"\n\n'
+            rb'c29tZSBhdHRhY2htZW50\n\n'
+            rb'--===============\1==--\n'
         ),
         raw_body,
     )

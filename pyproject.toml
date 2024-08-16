@@ -84,3 +84,9 @@ exclude_lines = [
 strict = true
 warn_return_any = false
 show_error_codes = true
+
+[[tool.mypy.overrides]]
+module = [
+    "devtools.*"
+]
+ignore_missing_imports = true

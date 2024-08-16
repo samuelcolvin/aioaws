@@ -82,7 +82,6 @@ class SesClient:
         message_tags: Optional[Dict[str, Any]] = None,
         smtp_headers: Optional[Dict[str, str]] = None,
     ) -> str:
-
         email_msg = EmailMessage()
         email_msg['Subject'] = subject
         e_from_recipient = as_recipient(e_from)

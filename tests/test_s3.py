@@ -235,7 +235,7 @@ async def test_real_upload(real_aws: AWS):
             assert len(files) == 1
             assert files[0] == {
                 'key': path,
-                'last_modified': IsNow(delta=10, tz='utc'),
+                'last_modified': IsNow(delta=10, tz='UTC'),
                 'size': 14,
                 'e_tag': '54b0c58c7ce9f2a8b551351102ee0938',
                 'storage_class': 'STANDARD',

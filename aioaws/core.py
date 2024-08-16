@@ -114,7 +114,7 @@ class AwsClient:
             raise RequestError(r)
         return r
 
-    def add_signed_download_params(self, method: Literal['GET', 'POST'], url: URL, expires: int = 86400) -> URL:
+    def add_signed_download_params(self, method: Literal['HEAD', 'GET', 'POST'], url: URL, expires: int = 86400) -> URL:
         assert expires >= 1, f'expires must be greater than or equal to 1, not {expires}'
         assert expires <= 604800, f'expires must be less than or equal to 604800, not {expires}'
         now = utcnow()
@@ -189,7 +189,7 @@ class AWSv4Auth:
         return headers
 
     def aws4_signature(
-        self, dt: datetime, method: Literal['GET', 'POST'], url: URL, headers: dict[str, str], payload_hash: str
+        self, dt: datetime, method: Literal['HEAD', 'GET', 'POST'], url: URL, headers: dict[str, str], payload_hash: str
     ) -> tuple[str, str]:
         header_keys = sorted(headers)
         signed_headers = ';'.join(header_keys)

@@ -1,13 +1,13 @@
 import asyncio
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Any, Awaitable, Iterable, List, Optional
+from typing import TYPE_CHECKING, Any, Coroutine, Iterable, List, Optional
 
 from httpx import Response
 
 if TYPE_CHECKING:
     from ._types import BaseConfigProtocol
 
-__all__ = 'get_config_attr', 'to_unix_s', 'utcnow', 'ManyTasks', 'pretty_response'
+__all__ = 'get_config_attr', 'to_unix_s', 'utcnow', 'ManyTasks', 'pretty_xml', 'pretty_response'
 
 EPOCH = datetime(1970, 1, 1)
 EPOCH_TZ = EPOCH.replace(tzinfo=timezone.utc)
@@ -47,17 +47,26 @@ class ManyTasks:
     def __init__(self) -> None:
         self._tasks: List[asyncio.Task[Any]] = []
 
-    def add(self, coroutine: Awaitable[Any], *, name: Optional[str] = None) -> None:
-        task = asyncio.create_task(coroutine, name=name)  # type: ignore
+    def add(self, coroutine: Coroutine[Any, Any, List[str]], *, name: Optional[str] = None) -> None:
+        task = asyncio.create_task(coroutine, name=name)
         self._tasks.append(task)
 
     async def finish(self) -> Iterable[Any]:
         return await asyncio.gather(*self._tasks)
 
 
-def pretty_response(r: Response) -> None:  # pragma: no cover
-    from xml.etree import ElementTree
+def pretty_xml(response_xml: bytes) -> str:
+    import xml.dom.minidom
 
+    try:
+        pretty = xml.dom.minidom.parseString(response_xml).toprettyxml(indent='  ')
+    except Exception:  # pragma: no cover
+        return response_xml.decode()
+    else:
+        return f'{pretty} (XML formatted by aioaws)'
+
+
+def pretty_response(r: Response) -> None:  # pragma: no cover
     try:
         from devtools import debug
     except ImportError:
@@ -66,11 +75,10 @@ def pretty_response(r: Response) -> None:  # pragma: no cover
         def debug(**kwargs: Any) -> None:
             pprint(kwargs)
 
-    xml_root = ElementTree.fromstring(r.content)
     debug(
         status=r.status_code,
         url=str(r.url),
         headers=dict(r.request.headers),
         history=r.history,
-        xml={el.tag: el.text for el in xml_root},
+        xml=pretty_xml(r.content),
     )

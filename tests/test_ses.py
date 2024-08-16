@@ -33,7 +33,7 @@ async def test_send(client: AsyncClient, aws: DummyServer):
     assert eml['body'] == {
         'Action': 'SendRawEmail',
         'Source': 'testing@sender.com',
-        'RawMessage.Data': IsStr(regex='.+'),
+        'RawMessage.Data': IsStr(),
         'Destination.ToAddresses.member.1': 'testing@recipient.com',
     }
     assert eml['email'] == {
@@ -152,7 +152,7 @@ async def test_send_names(client: AsyncClient, aws: DummyServer):
     assert eml['body'] == {
         'Action': 'SendRawEmail',
         'Source': 'testing@sender.com',
-        'RawMessage.Data': IsStr(regex='.+'),
+        'RawMessage.Data': IsStr(),
         'Destination.ToAddresses.member.1': 'testing@example.com',
         'Destination.CcAddresses.member.1': 'cc1@example.com',
         'Destination.CcAddresses.member.2': 'cc2@example.com',

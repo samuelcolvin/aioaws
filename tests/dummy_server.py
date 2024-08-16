@@ -1,11 +1,9 @@
 import re
-from io import BytesIO
 from typing import List
 from xml.etree import ElementTree
 
 from aiohttp import web
 from aiohttp.web_response import Response
-from PIL import Image, ImageDraw
 
 from aioaws.testing import ses_email_data, ses_send_response
 
@@ -70,13 +68,8 @@ async def s3_root(request: web.Request):
     return Response(body=body, content_type='text/xml')
 
 
-async def s3_demo_image(request):
-    width, height = 2000, 1200
-    stream = BytesIO()
-    image = Image.new('RGB', (width, height), (50, 100, 150))
-    ImageDraw.Draw(image).line((0, 0) + image.size, fill=128)
-    image.save(stream, format='JPEG', optimize=True)
-    return Response(body=stream.getvalue())
+async def s3_file(request: web.Request):
+    return Response(body='this is demo file content')
 
 
 async def ses_send(request):
@@ -124,9 +117,14 @@ async def aws_certs(request):
     return Response(body=aws_certs_body, content_type='content/unknown')
 
 
+async def xml_error(request):
+    return Response(body=s3_list_response_template, content_type='application/xml', status=456)
+
+
 routes = [
     web.route('*', '/s3/', s3_root),
-    web.get('/s3_demo_image_url/{image:.*}', s3_demo_image),
+    web.get('/s3/testing.txt', s3_file),
     web.post('/ses/', ses_send),
     web.get('/sns/certs/', aws_certs),
+    web.get('/xml-error/', xml_error),
 ]

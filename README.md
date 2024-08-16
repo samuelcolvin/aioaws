@@ -1,10 +1,10 @@
 # aioaws
 
-[![CI](https://github.com/samuelcolvin/aioaws/workflows/CI/badge.svg?event=push)](https://github.com/samuelcolvin/aioaws/actions?query=event%3Apush+branch%3Amaster+workflow%3ACI)
-[![Coverage](https://codecov.io/gh/samuelcolvin/aioaws/branch/master/graph/badge.svg)](https://codecov.io/gh/samuelcolvin/aioaws)
+[![CI](https://github.com/samuelcolvin/aioaws/workflows/CI/badge.svg?event=push)](https://github.com/samuelcolvin/aioaws/actions?query=event%3Apush+branch%3Amain+workflow%3ACI)
+[![Coverage](https://codecov.io/gh/samuelcolvin/aioaws/branch/main/graph/badge.svg)](https://codecov.io/gh/samuelcolvin/aioaws)
 [![pypi](https://img.shields.io/pypi/v/aioaws.svg)](https://pypi.python.org/pypi/aioaws)
 [![versions](https://img.shields.io/pypi/pyversions/aioaws.svg)](https://github.com/samuelcolvin/aioaws)
-[![license](https://img.shields.io/github/license/samuelcolvin/aioaws.svg)](https://github.com/samuelcolvin/aioaws/blob/master/LICENSE)
+[![license](https://img.shields.io/github/license/samuelcolvin/aioaws.svg)](https://github.com/samuelcolvin/aioaws/blob/main/LICENSE)
 
 Asyncio compatible SDK for aws services.
 
@@ -19,7 +19,7 @@ It currently supports:
 * **SNS** - enough to get notifications about mail delivery from SES
 * [AWS Signature Version 4](https://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-auth-using-authorization-header.html)
   authentication for any AWS service (this is the only clean & modern implementation of AWS4 I know of in python, see
-  [`core.py`](https://github.com/samuelcolvin/aioaws/blob/master/aioaws/core.py#L120-L175))
+  [`core.py`](https://github.com/samuelcolvin/aioaws/blob/main/aioaws/core.py#L120-L175))
 
 The only dependencies of **aioaws**, are:
 * **aiofiles** - for asynchronous reading of files
@@ -38,7 +38,6 @@ pip install aioaws
 
 ```py
 import asyncio
-# requires `pip install aioaws`
 from aioaws.s3 import S3Client, S3Config
 from httpx import AsyncClient
 
@@ -76,7 +75,7 @@ async def s3_demo(client: AsyncClient):
     # delete recursively based on a prefix
     await s3.delete_recursive('path/to/')
 
-    # generate an upload link suitable for sending to a borwser to enabled
+    # generate an upload link suitable for sending to a browser to enabled
     # secure direct file upload (see below)
     upload_data = s3.signed_upload_url(
         path='path/to/',
@@ -189,5 +188,5 @@ async def ses_webhook(request: Request):
     ...
 ```
 
-See [here](https://github.com/samuelcolvin/aioaws/blob/master/aioaws/ses.py#L196-L204)
+See [here](https://github.com/samuelcolvin/aioaws/blob/main/aioaws/ses.py#L196-L204)
 for more information about what's provided in a `SesWebhookInfo`.

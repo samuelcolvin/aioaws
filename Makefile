@@ -51,7 +51,6 @@ all: lint mypy testcov
 
 .PHONY: clean
 clean:
-	python setup.py clean
 	rm -rf `find . -name __pycache__`
 	rm -f `find . -type f -name '*.py[co]' `
 	rm -f `find . -type f -name '*~' `

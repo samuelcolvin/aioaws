@@ -11,8 +11,8 @@ from xml.etree import ElementTree
 from httpx import URL, AsyncClient
 from pydantic import BaseModel, ConfigDict, field_validator
 
-from ._utils import ManyTasks, utcnow
-from .core import AwsClient
+from ._utils import ManyTasks, pretty_xml, utcnow
+from .core import AwsClient, RequestError
 
 if TYPE_CHECKING:
     from ._types import S3ConfigProtocol
@@ -32,6 +32,8 @@ class S3Config:
     aws_secret_key: str
     aws_region: str
     aws_s3_bucket: str
+    # custom host to connect with
+    aws_host: Optional[str] = None
 
 
 def alias_generator(string: str) -> str:
@@ -80,7 +82,7 @@ class S3Client:
             if (t := xml_root.find('NextContinuationToken')) is not None:
                 continuation_token = t.text
             else:
-                raise RuntimeError(f'unexpected response from S3: {r.text!r}')
+                raise RuntimeError(f'unexpected response from S3:\n{pretty_xml(r.content)}')
 
     async def delete(self, *files: Union[str, S3File]) -> List[str]:
         """
@@ -156,6 +158,19 @@ class S3Client:
         if version:
             url = url.copy_add_param('v', version)
         return str(url)
+
+    async def download(self, file: Union[str, S3File], version: Optional[str] = None) -> bytes:
+        if isinstance(file, str):
+            path = file
+        else:
+            path = file.key
+
+        url = self.signed_download_url(path, version=version)
+        r = await self._aws_client.client.get(url)
+        if r.status_code == 200:
+            return r.content
+        else:
+            raise RequestError(r)
 
     def signed_upload_url(
         self,

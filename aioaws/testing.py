@@ -1,19 +1,20 @@
 import base64
+from collections.abc import Iterable
 from email import message_from_bytes
 from email.header import decode_header as _decode_header
-from typing import Any, Dict, Iterable, Optional
+from typing import Any
 from uuid import uuid4
 
 __all__ = 'ses_email_data', 'ses_send_response'
 
 
-def ses_email_data(data: Dict[str, str]) -> Dict[str, Any]:
+def ses_email_data(data: dict[str, str]) -> dict[str, Any]:
     """
     Convert raw email body data to a useful representation of an email for testing.
     """
     msg_raw = base64.b64decode(data['RawMessage.Data'])
     msg = message_from_bytes(msg_raw)
-    d: Dict[str, Any] = {}
+    d: dict[str, Any] = {}
     for k, v in msg.items():
         if k != 'Content-Type':
             d[k] = ''.join(decode_header(v))
@@ -31,7 +32,7 @@ def ses_email_data(data: Dict[str, str]) -> Dict[str, Any]:
     return {'body': dict(data), 'email': d}
 
 
-def ses_send_response(message_id: Optional[str] = None, request_id: Optional[str] = None) -> str:
+def ses_send_response(message_id: str | None = None, request_id: str | None = None) -> str:
     """
     Dummy response to SendRawEmail SES endpoint
     """

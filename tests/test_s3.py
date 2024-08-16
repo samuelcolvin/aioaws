@@ -230,7 +230,7 @@ async def test_real_upload(real_aws: AWS):
         await s3.upload(path, b'this is a test')
 
         try:
-            files = [f.dict() async for f in s3.list(f'{run_prefix}/')]
+            files = [f.model_dump() async for f in s3.list(f'{run_prefix}/')]
             # debug(files)
             assert len(files) == 1
             assert files[0] == {
@@ -242,7 +242,7 @@ async def test_real_upload(real_aws: AWS):
             }
         finally:
             assert await s3.delete(path) == [path]
-            assert [f.dict() async for f in s3.list(f'{run_prefix}/')] == []
+            assert [f.model_dump() async for f in s3.list(f'{run_prefix}/')] == []
 
 
 @pytest.mark.asyncio

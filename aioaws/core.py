@@ -3,9 +3,10 @@ import hashlib
 import hmac
 import logging
 from binascii import hexlify
+from collections.abc import Generator
 from datetime import datetime
 from functools import reduce
-from typing import TYPE_CHECKING, Any, Dict, Generator, List, Literal, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Literal
 from urllib.parse import quote as url_quote
 
 from httpx import URL, AsyncClient, Auth, Request, Response
@@ -61,7 +62,7 @@ class AwsClient:
     def endpoint(self) -> str:
         return f'{self.schema}://{self.host}'
 
-    async def get(self, path: str = '', *, params: Optional[Dict[str, Any]] = None) -> Response:
+    async def get(self, path: str = '', *, params: dict[str, Any] | None = None) -> Response:
         return await self.request('GET', path=path, params=params)
 
     async def raw_post(
@@ -69,9 +70,9 @@ class AwsClient:
         url: str,
         *,
         expected_status: int,
-        params: Optional[Dict[str, Any]] = None,
-        data: Optional[Dict[str, str]] = None,
-        files: Optional[Dict[str, bytes]] = None,
+        params: dict[str, Any] | None = None,
+        data: dict[str, str] | None = None,
+        files: dict[str, bytes] | None = None,
     ) -> Response:
         r = await self.client.post(url, params=params, data=data, files=files)
         if r.status_code == expected_status:
@@ -85,9 +86,9 @@ class AwsClient:
         self,
         path: str = '',
         *,
-        params: Optional[Dict[str, Any]] = None,
-        data: Optional[bytes] = None,
-        content_type: Optional[str] = None,
+        params: dict[str, Any] | None = None,
+        data: bytes | None = None,
+        content_type: str | None = None,
     ) -> Response:
         return await self.request('POST', path=path, params=params, data=data, content_type=content_type)
 
@@ -96,9 +97,9 @@ class AwsClient:
         method: Literal['GET', 'POST'],
         *,
         path: str,
-        params: Optional[Dict[str, Any]],
-        data: Optional[bytes] = None,
-        content_type: Optional[str] = None,
+        params: dict[str, Any] | None,
+        data: bytes | None = None,
+        content_type: str | None = None,
     ) -> Response:
         url = URL(f'{self.endpoint}{path}', params=[(k, v) for k, v in sorted((params or {}).items())])
         r = await self.client.request(
@@ -129,14 +130,14 @@ class AwsClient:
         _, signature = self._auth.aws4_signature(now, method, url, {'host': self.host}, 'UNSIGNED-PAYLOAD')
         return url.copy_add_param('X-Amz-Signature', signature)
 
-    def upload_extra_conditions(self, dt: datetime) -> List[Dict[str, str]]:
+    def upload_extra_conditions(self, dt: datetime) -> list[dict[str, str]]:
         return [
             {'x-amz-credential': self._auth.aws4_credential(dt)},
             {'x-amz-algorithm': _AUTH_ALGORITHM},
             {'x-amz-date': _aws4_x_amz_date(dt)},
         ]
 
-    def signed_upload_fields(self, dt: datetime, string_to_sign: str) -> Dict[str, str]:
+    def signed_upload_fields(self, dt: datetime, string_to_sign: str) -> dict[str, str]:
         return {
             'X-Amz-Algorithm': _AUTH_ALGORITHM,
             'X-Amz-Credential': self._auth.aws4_credential(dt),
@@ -163,9 +164,9 @@ class AWSv4Auth:
         method: Literal['GET', 'POST'],
         url: URL,
         *,
-        data: Optional[bytes] = None,
-        content_type: Optional[str] = None,
-    ) -> Dict[str, str]:
+        data: bytes | None = None,
+        content_type: str | None = None,
+    ) -> dict[str, str]:
         now = utcnow()
         data = data or b''
         content_type = content_type or _CONTENT_TYPE
@@ -188,8 +189,8 @@ class AWSv4Auth:
         return headers
 
     def aws4_signature(
-        self, dt: datetime, method: Literal['GET', 'POST'], url: URL, headers: Dict[str, str], payload_hash: str
-    ) -> Tuple[str, str]:
+        self, dt: datetime, method: Literal['GET', 'POST'], url: URL, headers: dict[str, str], payload_hash: str
+    ) -> tuple[str, str]:
         header_keys = sorted(headers)
         signed_headers = ';'.join(header_keys)
         canonical_request_parts = (

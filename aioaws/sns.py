@@ -2,7 +2,7 @@ import base64
 import json
 import logging
 import re
-from typing import Any, Dict, Literal, Optional, Tuple, Union
+from typing import Any, Literal
 
 from cryptography import x509
 from cryptography.exceptions import InvalidSignature
@@ -16,7 +16,7 @@ logger = logging.getLogger('aioaws.sns')
 
 
 class SnsWebhookError(ValueError):
-    def __init__(self, message: str, details: Any = None, headers: Dict[str, str] | None = None):
+    def __init__(self, message: str, details: Any = None, headers: dict[str, str] | None = None):
         super().__init__(message)
         self.message = message
         self.details = details
@@ -29,14 +29,14 @@ class SnsPayload(BaseModel):
     signature: bytes = Field(..., alias='Signature')
     subscribe_url: HttpUrl = Field(None, alias='SubscribeURL')
     message: str = Field(str, alias='Message')
-    request_data: Dict[str, Any]
+    request_data: dict[str, Any]
 
     @field_validator('signature', mode='before')
     def base64_signature(cls, sig: str) -> bytes:
         return base64.b64decode(sig)
 
 
-async def verify_webhook(request_body: Union[str, bytes], http_client: AsyncClient) -> Optional[SnsPayload]:
+async def verify_webhook(request_body: str | bytes, http_client: AsyncClient) -> SnsPayload | None:
     try:
         request_data = json.loads(request_body)
     except ValueError as e:
@@ -75,7 +75,7 @@ async def verify_signature(payload: SnsPayload, http_client: AsyncClient) -> Non
 
 
 def get_message(payload: SnsPayload) -> bytes:
-    keys: Tuple[str, ...]
+    keys: tuple[str, ...]
     if payload.type == 'Notification':
         keys = 'Message', 'MessageId', 'Subject', 'Timestamp', 'TopicArn', 'Type'
     else:

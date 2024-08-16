@@ -1,6 +1,7 @@
+from collections.abc import AsyncIterator, Iterable, Mapping
 from contextlib import AsyncExitStack, asynccontextmanager
 from dataclasses import dataclass
-from typing import Any, AsyncIterator, Iterable, Mapping, Optional, Union
+from typing import Any
 
 from httpx import AsyncClient, Timeout
 from pydantic import BaseModel, Field
@@ -48,7 +49,7 @@ class SQSClient:
         *,
         client: AsyncClient,
     ) -> None:
-        self._queue_name_or_url: Union[_QueueName, _QueueURL]
+        self._queue_name_or_url: _QueueName | _QueueURL
         if queue_name_or_url[:4] == 'http':
             self._queue_name_or_url = _QueueURL(queue_name_or_url)
         else:
@@ -94,7 +95,7 @@ class SQSClient:
     async def poll(
         self,
         *,
-        config: Optional[PollConfig] = None,
+        config: PollConfig | None = None,
     ) -> AsyncIterator[Iterable[SQSMessage]]:
         config = config or PollConfig()
         queue_url = await self._get_queue_url()
@@ -167,7 +168,7 @@ async def create_sqs_client(
     queue: str,
     auth: AWSAuthConfig,
     *,
-    client: Optional[AsyncClient] = None,
+    client: AsyncClient | None = None,
 ) -> AsyncIterator[SQSClient]:
     async with AsyncExitStack() as stack:
         if client is None:

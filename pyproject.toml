@@ -7,7 +7,7 @@ path = "aioaws/version.py"
 
 [project]
 name = "aioaws"
-description = "Data validation and settings management using python 3.6 type hinting"
+description = "Asyncio SDK for some AWS services."
 authors = [{name = "Samuel Colvin", email = "s@muelcolvin.com"}]
 license = "MIT"
 readme = "README.md"

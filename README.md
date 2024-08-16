@@ -1,6 +1,6 @@
 # aioaws
 
-[![CI](https://github.com/samuelcolvin/aioaws/workflows/CI/badge.svg?event=push)](https://github.com/samuelcolvin/aioaws/actions?query=event%3Apush+branch%3Amain+workflow%3ACI)
+[![CI](https://github.com/samuelcolvin/aioaws/actions/workflows/ci.yml/badge.svg?event=push)](https://github.com/samuelcolvin/aioaws/actions?query=event%3Apush+branch%3Amain+workflow%3ACI)
 [![Coverage](https://codecov.io/gh/samuelcolvin/aioaws/branch/main/graph/badge.svg)](https://codecov.io/gh/samuelcolvin/aioaws)
 [![pypi](https://img.shields.io/pypi/v/aioaws.svg)](https://pypi.python.org/pypi/aioaws)
 [![versions](https://img.shields.io/pypi/pyversions/aioaws.svg)](https://github.com/samuelcolvin/aioaws)
@@ -132,6 +132,7 @@ for them for the upload shown here to succeed)
 To send an email with SES:
 
 ```py
+import asyncio
 from pathlib import Path
 from httpx import AsyncClient
 from aioaws.ses import SesConfig, SesClient, SesRecipient, SesAttachment

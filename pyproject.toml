@@ -1,0 +1,86 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.version]
+path = "aioaws/version.py"
+
+[project]
+name = "aioaws"
+description = "Data validation and settings management using python 3.6 type hinting"
+authors = [{name = "Samuel Colvin", email = "s@muelcolvin.com"}]
+license = "MIT"
+readme = "README.md"
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Information Technology",
+    "Intended Audience :: System Administrators",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: Unix",
+    "Operating System :: POSIX :: Linux",
+    "Environment :: Console",
+    "Environment :: MacOS X",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Internet",
+]
+requires-python = ">=3.9"
+dependencies = [
+    "aiofiles>=24",
+    "cryptography>=43",
+    "httpx>=0.27",
+    "pydantic>=2.8",
+    "pydantic-settings>=2.4.0"
+]
+dynamic = ["version"]
+
+[project.urls]
+Homepage = "https://github.com/samuelcolvin/aioaws"
+Funding = "https://github.com/sponsors/samuelcolvin"
+Source = "https://github.com/samuelcolvin/aioaws"
+Changelog = "https://github.com/samuelcolvin/aioaws/releases"
+
+[tool.ruff]
+line-length = 120
+lint.extend-select = ["Q", "RUF100", "C90", "UP", "I"]
+lint.ignore = ["E721"]
+lint.flake8-quotes = {inline-quotes = "single", multiline-quotes = "double"}
+lint.mccabe = { max-complexity = 14 }
+lint.pydocstyle = { convention = "google" }
+format.quote-style = "single"
+target-version = "py38"
+
+[tool.pytest.ini_options]
+testpaths = "tests"
+asyncio_mode = "auto"
+filterwarnings = [
+    "error",
+    "ignore:.*web.AppKey.*",
+]
+
+[tool.coverage.run]
+source = ["aioasws"]
+branch = true
+
+[tool.coverage.report]
+precision = 2
+exclude_lines = [
+    "pragma: no cover",
+    "raise NotImplementedError",
+    "raise NotImplemented",
+    "if TYPE_CHECKING:",
+    "@overload",
+]
+
+[tool.mypy]
+strict = true
+warn_return_any = false
+show_error_codes = true

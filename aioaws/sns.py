@@ -9,7 +9,7 @@ from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import padding
 from httpx import AsyncClient
-from pydantic import BaseModel, Field, HttpUrl, ValidationError, validator
+from pydantic import BaseModel, Field, HttpUrl, ValidationError, field_validator
 
 __all__ = 'SnsWebhookError', 'SnsPayload', 'verify_webhook'
 logger = logging.getLogger('aioaws.sns')
@@ -31,7 +31,7 @@ class SnsPayload(BaseModel):
     message: str = Field(str, alias='Message')
     request_data: Dict[str, Any]
 
-    @validator('signature', pre=True)
+    @field_validator('signature', mode='before')
     def base64_signature(cls, sig: str) -> bytes:
         return base64.b64decode(sig)
 

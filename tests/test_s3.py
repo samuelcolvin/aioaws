@@ -3,16 +3,14 @@ import secrets
 from datetime import datetime, timezone
 
 import pytest
-from foxglove.test_server import DummyServer
+from foxglove.testing import DummyServer
 from httpx import AsyncClient
-from pytest_toolbox.comparison import CloseToNow
+from dirty_equals import IsNow
 
 from aioaws.core import RequestError
 from aioaws.s3 import S3Client, S3Config, S3File, to_key
 
 from .conftest import AWS
-
-pytestmark = pytest.mark.asyncio
 
 run_prefix = secrets.token_hex()[:10]
 
@@ -109,7 +107,7 @@ async def test_list(client: AsyncClient):
     s3 = S3Client(client, S3Config('testing', 'testing', 'testing', 'testing'))
     files = [f async for f in s3.list()]
     assert len(files) == 3
-    assert files[0].dict() == dict(
+    assert files[0].model_dump() == dict(
         key='/foo.html',
         last_modified=datetime(2032, 1, 1, 12, 34, 56, tzinfo=timezone.utc),
         size=123,
@@ -143,7 +141,7 @@ async def test_list_bad(client: AsyncClient):
 
 def test_to_key():
     assert to_key('foobar') == 'foobar'
-    assert to_key(S3File.construct(key='spam')) == 'spam'
+    assert to_key(S3File.model_construct(key='spam')) == 'spam'
     with pytest.raises(TypeError, match='must be a string or S3File object'):
         to_key(123)
 
@@ -208,7 +206,7 @@ async def test_real_upload(real_aws: AWS):
             assert len(files) == 1
             assert files[0] == {
                 'key': path,
-                'last_modified': CloseToNow(delta=10),
+                'last_modified': IsNow(delta=10),
                 'size': 14,
                 'e_tag': '54b0c58c7ce9f2a8b551351102ee0938',
                 'storage_class': 'STANDARD',

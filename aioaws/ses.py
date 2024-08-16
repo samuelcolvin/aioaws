@@ -15,7 +15,7 @@ from urllib.parse import urlencode
 
 import aiofiles
 from httpx import AsyncClient
-from pydantic.datetime_parse import parse_datetime
+from pydantic import TypeAdapter
 
 from . import sns
 from .core import AwsClient
@@ -200,6 +200,9 @@ async def prepare_attachment(a: SesAttachment) -> Tuple[MIMEBase, int]:
     return msg, len(data)
 
 
+DateTimeParser = TypeAdapter(datetime)
+
+
 @dataclass
 class SesWebhookInfo:
     message_id: str
@@ -248,7 +251,7 @@ class SesWebhookInfo:
         return cls(
             message_id=message_id,
             event_type=event_type,
-            timestamp=timestamp and parse_datetime(timestamp),
+            timestamp=timestamp and DateTimeParser.validate_strings(timestamp),
             unsubscribe=unsubscribe,
             tags={k: v[0] for k, v in tags.items()},
             details=details,

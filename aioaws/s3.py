@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any, AsyncIterable, Dict, List, Optional, Unio
 from xml.etree import ElementTree
 
 from httpx import URL, AsyncClient
-from pydantic import BaseModel, validator
+from pydantic import BaseModel, field_validator, ConfigDict
 
 from ._utils import ManyTasks, utcnow
 from .core import AwsClient
@@ -34,21 +34,21 @@ class S3Config:
     aws_s3_bucket: str
 
 
+def alias_generator(string: str) -> str:
+    return ''.join(word.capitalize() for word in string.split('_'))
+
+
 class S3File(BaseModel):
+    model_config = ConfigDict(alias_generator=alias_generator)
     key: str
     last_modified: datetime
     size: int
     e_tag: str
     storage_class: str
 
-    @validator('e_tag')
+    @field_validator('e_tag')
     def set_ts_now(cls, v: str) -> str:
         return v.strip('"')
-
-    class Config:
-        @classmethod
-        def alias_generator(cls, string: str) -> str:
-            return ''.join(word.capitalize() for word in string.split('_'))
 
 
 class S3Client:
@@ -73,7 +73,7 @@ class S3Client:
 
             xml_root = ElementTree.fromstring(xmlns_re.sub(b'', r.content))
             for c in xml_root.findall('Contents'):
-                yield S3File.parse_obj({v.tag: v.text for v in c})
+                yield S3File.model_validate({v.tag: v.text for v in c})
             if (t := xml_root.find('IsTruncated')) is not None and t.text == 'false':
                 break
 
@@ -106,7 +106,7 @@ class S3Client:
             filename=parts[-1],
             content_type=content_type or 'application/octet-stream',
             size=len(content),
-            expires=datetime.utcnow() + timedelta(minutes=30),
+            expires=utcnow() + timedelta(minutes=30),
         )
         await self._aws_client.raw_post(d['url'], expected_status=204, data=d['fields'], files={'file': content})
 

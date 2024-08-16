@@ -34,7 +34,7 @@ def to_unix_s(dt: datetime) -> int:
 
 
 def utcnow() -> datetime:
-    return datetime.utcnow().replace(tzinfo=timezone.utc)
+    return datetime.now(tz=timezone.utc)
 
 
 class ManyTasks:

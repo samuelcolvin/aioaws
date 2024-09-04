@@ -23,7 +23,7 @@ cffi==1.17.0
     # via
     #   -c requirements/tests.txt
     #   cryptography
-cryptography==43.0.0
+cryptography==43.0.1
     # via aioaws (pyproject.toml)
 h11==0.14.0
     # via

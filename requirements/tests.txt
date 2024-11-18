@@ -8,8 +8,8 @@ aiodns==3.2.0
     # via foxglove-web
 aiohappyeyeballs==2.3.6
     # via aiohttp
-aiohttp==3.10.3
-    # via -r requirements/tests.in
+aiohttp==3.10.11
+    # via -r tests.in
 aiosignal==1.3.1
     # via aiohttp
 annotated-types==0.7.0
@@ -21,7 +21,7 @@ anyio==4.4.0
 arq==0.26.0
     # via foxglove-web
 async-timeout==4.0.3
-    # via -r requirements/tests.in
+    # via -r tests.in
 asyncpg==0.29.0
     # via foxglove-web
 attrs==24.2.0
@@ -46,13 +46,13 @@ click==8.1.7
     #   typer
     #   uvicorn
 coverage==7.6.1
-    # via -r requirements/tests.in
+    # via -r tests.in
 dirty-equals==0.8.0
-    # via -r requirements/tests.in
+    # via -r tests.in
 fastapi==0.112.1
     # via foxglove-web
 foxglove-web==0.0.39
-    # via -r requirements/tests.in
+    # via -r tests.in
 frozenlist==1.4.1
     # via
     #   aiohttp
@@ -88,9 +88,11 @@ multidict==6.0.5
 packaging==24.1
     # via pytest
 pillow==10.4.0
-    # via -r requirements/tests.in
+    # via -r tests.in
 pluggy==1.5.0
     # via pytest
+propcache==0.2.0
+    # via yarl
 pycares==4.4.0
     # via aiodns
 pycparser==2.22
@@ -106,26 +108,26 @@ pydantic-settings==2.4.0
     # via foxglove-web
 pygments==2.18.0
     # via
-    #   -r requirements/tests.in
+    #   -r tests.in
     #   rich
 pytest==8.3.2
     # via
-    #   -r requirements/tests.in
+    #   -r tests.in
     #   pytest-asyncio
     #   pytest-mock
     #   pytest-pretty
 pytest-asyncio==0.23.8
-    # via -r requirements/tests.in
+    # via -r tests.in
 pytest-mock==3.14.0
-    # via -r requirements/tests.in
+    # via -r tests.in
 pytest-pretty==1.2.0
-    # via -r requirements/tests.in
+    # via -r tests.in
 python-dotenv==1.0.1
     # via pydantic-settings
 redis==4.6.0
     # via arq
 requests==2.32.3
-    # via -r requirements/tests.in
+    # via -r tests.in
 rich==13.7.1
     # via
     #   pytest-pretty
@@ -144,7 +146,6 @@ typer==0.12.3
     # via foxglove-web
 typing-extensions==4.12.2
     # via
-    #   -c requirements/linting.txt
     #   fastapi
     #   pydantic
     #   pydantic-core
@@ -155,5 +156,5 @@ urllib3==2.2.2
     #   sentry-sdk
 uvicorn==0.30.6
     # via foxglove-web
-yarl==1.9.4
+yarl==1.17.2
     # via aiohttp

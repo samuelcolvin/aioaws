@@ -63,16 +63,6 @@ jobs:
         TEST_AWS_ACCESS_KEY: ${{ secrets.TEST_AWS_ACCESS_KEY }}
         TEST_AWS_SECRET_KEY: ${{ secrets.TEST_AWS_SECRET_KEY }}
 
-    - run: uv run coverage xml
-
-    - uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
-      with:
-        files: ./coverage.xml
-        env_vars: PYTHON,OS
-      env:
-        PYTHON: ${{ matrix.python-version }}
-        OS: ${{ matrix.os }}
-
   # https://github.com/marketplace/actions/alls-green#why used for branch protection checks
   check:
     if: always()

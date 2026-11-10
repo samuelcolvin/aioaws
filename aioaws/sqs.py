@@ -1,4 +1,4 @@
-from collections.abc import AsyncIterator, Iterable, Mapping
+from collections.abc import AsyncGenerator, AsyncIterator, Iterable, Mapping
 from contextlib import AsyncExitStack, asynccontextmanager
 from dataclasses import dataclass
 from typing import Any
@@ -169,7 +169,7 @@ async def create_sqs_client(
     auth: AWSAuthConfig,
     *,
     client: AsyncClient | None = None,
-) -> AsyncIterator[SQSClient]:
+) -> AsyncGenerator[SQSClient]:
     async with AsyncExitStack() as stack:
         if client is None:
             client = await stack.enter_async_context(AsyncClient())

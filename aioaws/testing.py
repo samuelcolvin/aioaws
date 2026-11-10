@@ -19,7 +19,8 @@ def ses_email_data(data: dict[str, str]) -> dict[str, Any]:
         if k != 'Content-Type':
             d[k] = ''.join(decode_header(v))
 
-    d['payload'] = []
+    payloads: list[dict[str, str]] = []
+    d['payload'] = payloads
     for part in msg.walk():
         if payload := part.get_payload(decode=True):
             assert isinstance(payload, bytes), f'expected payload to be bytes, got {type(payload)}'
@@ -27,7 +28,7 @@ def ses_email_data(data: dict[str, str]) -> dict[str, Any]:
             for key in 'Content-Disposition', 'Content-ID':
                 if cd := part[key]:
                     part_info[key] = cd
-            d['payload'].append(part_info)
+            payloads.append(part_info)
 
     return {'body': dict(data), 'email': d}
 

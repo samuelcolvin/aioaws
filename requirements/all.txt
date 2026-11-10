@@ -1,3 +1,0 @@
--r ./linting.txt
--r ./tests.txt
--r ./pyproject.txt

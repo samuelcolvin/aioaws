@@ -11,7 +11,7 @@ Asyncio SDK for some AWS services.
 This library does not depend on boto, boto3 or any of the other bloated, opaque and mind thumbing AWS SDKs. Instead, it
 is written from scratch to provide clean, secure and easily debuggable access to AWS services I want to use.
 
-The library is formatted with black and includes complete type hints (mypy passes in strict-mode).
+The library is formatted with ruff and includes complete type hints (basedpyright passes in strict mode).
 
 It currently supports:
 * **S3** - list, delete, recursive delete, generating signed upload URLs, generating signed download URLs

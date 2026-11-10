@@ -1,6 +1,6 @@
 import asyncio
 from collections.abc import Coroutine, Iterable
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 from httpx import Response
@@ -8,10 +8,10 @@ from httpx import Response
 if TYPE_CHECKING:
     from ._types import BaseConfigProtocol
 
-__all__ = 'get_config_attr', 'utcnow', 'ManyTasks', 'pretty_xml', 'pretty_response'
+__all__ = 'ManyTasks', 'get_config_attr', 'pretty_response', 'pretty_xml', 'utcnow'
 
 EPOCH = datetime(1970, 1, 1)
-EPOCH_TZ = EPOCH.replace(tzinfo=timezone.utc)
+EPOCH_TZ = EPOCH.replace(tzinfo=UTC)
 
 
 def get_config_attr(config: 'BaseConfigProtocol', name: str) -> str:
@@ -27,7 +27,7 @@ def get_config_attr(config: 'BaseConfigProtocol', name: str) -> str:
 
 
 def utcnow() -> datetime:
-    return datetime.now(tz=timezone.utc)
+    return datetime.now(tz=UTC)
 
 
 class ManyTasks:
@@ -35,7 +35,7 @@ class ManyTasks:
     Simply utility to start many tasks without awaiting them, then wait for them all to finish
     """
 
-    __slots__ = '_tasks'
+    __slots__ = ('_tasks',)
 
     def __init__(self) -> None:
         self._tasks: list[asyncio.Task[Any]] = []

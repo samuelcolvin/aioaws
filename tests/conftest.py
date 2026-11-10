@@ -11,18 +11,13 @@ from httpx import URL, AsyncClient
 from . import dummy_server
 
 
-@pytest.fixture(name='loop')
-def _fix_loop(event_loop):
-    asyncio.set_event_loop(event_loop)
-    return event_loop
-
-
 @pytest.fixture(name='aws')
-def _fix_aws(loop):
+async def _fix_aws():
     ctx = {'s3_files': {}, 'emails': []}
-    ds = loop.run_until_complete(create_dummy_server(loop, extra_routes=dummy_server.routes, extra_context=ctx))
+    loop = asyncio.get_running_loop()
+    ds = await create_dummy_server(loop, extra_routes=dummy_server.routes, extra_context=ctx)
     yield ds
-    loop.run_until_complete(ds.stop())
+    await ds.stop()
 
 
 class CustomAsyncClient(AsyncClient):
@@ -56,7 +51,7 @@ class CustomAsyncClient(AsyncClient):
 
 
 @pytest.fixture(name='client')
-async def _fix_client(loop, aws: DummyServer):
+async def _fix_client(aws: DummyServer):
     async with CustomAsyncClient(local_server=aws.server_name) as client:
         yield client
 

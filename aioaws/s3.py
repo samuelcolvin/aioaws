@@ -56,7 +56,7 @@ class S3File(BaseModel):
 
 
 class S3Client:
-    __slots__ = '_config', '_aws_client'
+    __slots__ = '_aws_client', '_config'
 
     def __init__(self, http_client: AsyncClient, config: 'S3ConfigProtocol'):
         self._aws_client = AwsClient(http_client, config, 's3')
@@ -118,7 +118,7 @@ class S3Client:
         """
         Delete files starting with a specific prefix.
         """
-        files = []
+        files: builtins.list[S3File] = []
         tasks = ManyTasks()
         async for f in self.list(prefix):
             files.append(f)
@@ -144,7 +144,7 @@ class S3Client:
         )
         r = await self._aws_client.post('', data=xml.encode(), params=dict(delete=1), content_type='text/xml')
         xml_root = ElementTree.fromstring(xmlns_re.sub(b'', r.content))
-        return [k.find('Key').text for k in xml_root]  # type: ignore
+        return [k.find('Key').text for k in xml_root]  # pyright: ignore[reportReturnType,reportOptionalMemberAccess]
 
     def signed_download_url(
         self, path: str, version: str | None = None, max_age: int = 30, method: Literal['GET', 'HEAD'] = 'GET'
@@ -226,7 +226,7 @@ class S3Client:
 def to_key(sf: S3File | str) -> str:
     if isinstance(sf, str):
         return sf
-    elif isinstance(sf, S3File):
+    elif isinstance(sf, S3File):  # pyright: ignore[reportUnnecessaryIsInstance] -- guard against untyped callers
         return sf.key
     else:
         raise TypeError('must be a string or S3File object')

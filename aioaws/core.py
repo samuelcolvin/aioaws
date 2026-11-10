@@ -220,7 +220,7 @@ class AWSv4Auth:
             _AWS_AUTH_REQUEST,
             string_to_sign,
         )
-        signature_bytes: bytes = reduce(_aws4_reduce_signature, key_parts)  # type: ignore
+        signature_bytes: bytes = reduce(_aws4_reduce_signature, key_parts)  # pyright: ignore[reportArgumentType]
         return hexlify(signature_bytes).decode()
 
     def _aws4_scope(self, dt: datetime) -> str:
@@ -247,7 +247,7 @@ class AWSV4AuthFlow(Auth):
 
     def auth_flow(self, request: Request) -> Generator[Request, Response, None]:
         auth_headers = self._authorizer.auth_headers(
-            method=request.method.upper(),  # type: ignore
+            method=request.method.upper(),  # pyright: ignore[reportArgumentType]
             url=request.url,
             data=request.content,
             content_type=request.headers.get('Content-Type'),

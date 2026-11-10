@@ -1,67 +1,62 @@
 .DEFAULT_GOAL := all
 
+.PHONY: .uv
+.uv:
+	@uv --version || echo 'Please install uv: https://docs.astral.sh/uv/getting-started/installation/'
+
 .PHONY: install
-install:
-	pip install -U pip pre-commit pip-tools
-	pip install -r requirements/all.txt
-	pre-commit install
-
-.PHONY: refresh-lockfiles
-refresh-lockfiles:
-	@echo "Replacing requirements/*.txt files using pip-compile"
-	find requirements/ -name '*.txt' ! -name 'all.txt' -type f -delete
-	make update-lockfiles
-
-.PHONY: update-lockfiles
-update-lockfiles:
-	@echo "Updating requirements/*.txt files using pip-compile"
-	pip-compile --strip-extras -q -o requirements/linting.txt requirements/linting.in
-	pip-compile --strip-extras -q -o requirements/tests.txt -c requirements/linting.txt requirements/tests.in
-	pip-compile --strip-extras -q -o requirements/pyproject.txt \
-		-c requirements/linting.txt -c requirements/tests.txt \
-		pyproject.toml
-	pip install --dry-run -r requirements/all.txt
+install: .uv ## Install python dependencies and prek hooks
+	uv sync --frozen
+	uvx prek install --install-hooks
 
 .PHONY: format
-format:
-	ruff check --fix-only aioaws tests
-	ruff format aioaws tests
+format: ## Format Python code
+	uv run ruff format
+	uv run ruff check --fix --fix-only
 
 .PHONY: lint
-lint:
-	ruff check aioaws tests
-	ruff format --check aioaws tests
-
-.PHONY: mypy
-mypy:
-	mypy --version
-	mypy aioaws
+lint: ## Lint Python code with ruff and basedpyright (strict)
+	uv run ruff format --check
+	uv run ruff check
+	uv run basedpyright
 
 .PHONY: test
-test:
-	coverage run -m pytest
+test: ## Run tests
+	uv run coverage run -m pytest
 
 .PHONY: testcov
-testcov: test
+testcov: test ## Run tests with coverage and build HTML report
 	@echo "building coverage html"
-	@coverage html
+	@uv run coverage html
 
 .PHONY: all
-all: lint mypy testcov
+all: lint testcov ## Run all checks and tests
 
 .PHONY: clean
-clean:
+clean: ## Clean up build artifacts
 	rm -rf `find . -name __pycache__`
 	rm -f `find . -type f -name '*.py[co]' `
 	rm -f `find . -type f -name '*~' `
 	rm -f `find . -type f -name '.*~' `
 	rm -rf .cache
 	rm -rf .pytest_cache
-	rm -rf .mypy_cache
 	rm -rf htmlcov
 	rm -rf *.egg-info
 	rm -f .coverage
 	rm -f .coverage.*
 	rm -rf build
 	rm -rf dist
-	rm -rf site
+
+# (must stay last!)
+.PHONY: help
+help: ## Show this help (usage: make help)
+	@echo "Usage: make [recipe]"
+	@echo "Recipes:"
+	@awk '/^[a-zA-Z0-9_-]+:.*?##/ { \
+	    helpMessage = match($$0, /## (.*)/); \
+	        if (helpMessage) { \
+	            recipe = $$1; \
+	            sub(/:/, "", recipe); \
+	            printf "  \033[36mmake %-20s\033[0m %s\n", recipe, substr($$0, RSTART + 3, RLENGTH); \
+	    } \
+	}' $(MAKEFILE_LIST)

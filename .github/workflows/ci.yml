@@ -108,7 +108,7 @@ jobs:
       - name: check GITHUB_REF matches package version
         uses: samuelcolvin/check-python-version@17d859ba0a6af9ffcaac5c70608fed36ed33e32a # v5.1
         with:
-          version_file_path: aioaws/version.py
+          version_file_path: pyproject.toml
 
       - run: uv build
 

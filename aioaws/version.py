@@ -1,3 +1,5 @@
+from importlib.metadata import version
+
 __all__ = ['VERSION']
 
-VERSION = '0.15.1'
+VERSION = version('aioaws')

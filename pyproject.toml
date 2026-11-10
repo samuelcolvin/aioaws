@@ -2,11 +2,9 @@
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
-[tool.hatch.version]
-path = "aioaws/version.py"
-
 [project]
 name = "aioaws"
+version = "0.15.1"
 description = "Asyncio SDK for some AWS services."
 authors = [{name = "Samuel Colvin", email = "s@muelcolvin.com"}]
 license = "MIT"
@@ -41,7 +39,6 @@ dependencies = [
     "pydantic>=2.8",
     "pydantic-settings>=2.4.0"
 ]
-dynamic = ["version"]
 
 [project.urls]
 Homepage = "https://github.com/samuelcolvin/aioaws"

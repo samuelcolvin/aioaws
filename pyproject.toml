@@ -41,10 +41,10 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/samuelcolvin/aioaws"
+Homepage = "https://github.com/pydantic/aioaws"
 Funding = "https://github.com/sponsors/samuelcolvin"
-Source = "https://github.com/samuelcolvin/aioaws"
-Changelog = "https://github.com/samuelcolvin/aioaws/releases"
+Source = "https://github.com/pydantic/aioaws"
+Changelog = "https://github.com/pydantic/aioaws/releases"
 
 [dependency-groups]
 dev = [

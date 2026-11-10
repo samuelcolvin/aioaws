@@ -1,7 +1,7 @@
 from collections.abc import AsyncGenerator
 
 import pytest
-from httpx import AsyncClient, MockTransport, Request, Response
+from httpx2 import AsyncClient, MockTransport, Request, Response
 
 from aioaws.sqs import AWSAuthConfig, SQSClient, SQSMessage
 

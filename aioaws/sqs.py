@@ -3,7 +3,7 @@ from contextlib import AsyncExitStack, asynccontextmanager
 from dataclasses import dataclass
 from typing import Any
 
-from httpx import AsyncClient, Timeout
+from httpx2 import AsyncClient, Timeout
 from pydantic import BaseModel, Field
 
 from .core import AWSV4AuthFlow

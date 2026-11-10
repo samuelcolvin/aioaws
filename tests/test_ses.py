@@ -6,7 +6,7 @@ from datetime import datetime
 import pytest
 from dirty_equals import IsStr
 from foxglove.testing import DummyServer
-from httpx import AsyncClient
+from httpx2 import AsyncClient
 
 from aioaws.ses import SesAttachment, SesClient, SesConfig, SesRecipient, SesWebhookInfo
 from aioaws.sns import SnsWebhookError

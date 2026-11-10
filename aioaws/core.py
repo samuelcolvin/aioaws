@@ -9,7 +9,7 @@ from functools import reduce
 from typing import TYPE_CHECKING, Any, Literal
 from urllib.parse import quote as url_quote
 
-from httpx import URL, AsyncClient, Auth, Request, Response
+from httpx2 import URL, AsyncClient, Auth, Request, Response
 
 from ._utils import get_config_attr, pretty_xml, utcnow
 

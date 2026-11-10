@@ -8,7 +8,7 @@ from cryptography import x509
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import padding, rsa
-from httpx import AsyncClient
+from httpx2 import AsyncClient
 from pydantic import BaseModel, Field, HttpUrl, ValidationError, field_validator
 
 __all__ = 'SnsPayload', 'SnsWebhookError', 'verify_webhook'

@@ -1,10 +1,10 @@
 # aioaws
 
-[![CI](https://github.com/samuelcolvin/aioaws/actions/workflows/ci.yml/badge.svg?event=push)](https://github.com/samuelcolvin/aioaws/actions?query=event%3Apush+branch%3Amain+workflow%3ACI)
-[![Coverage](https://codecov.io/gh/samuelcolvin/aioaws/branch/main/graph/badge.svg)](https://codecov.io/gh/samuelcolvin/aioaws)
+[![CI](https://github.com/pydantic/aioaws/actions/workflows/ci.yml/badge.svg?event=push)](https://github.com/pydantic/aioaws/actions?query=event%3Apush+branch%3Amain+workflow%3ACI)
+[![Coverage](https://codecov.io/gh/pydantic/aioaws/branch/main/graph/badge.svg)](https://codecov.io/gh/pydantic/aioaws)
 [![pypi](https://img.shields.io/pypi/v/aioaws.svg)](https://pypi.python.org/pypi/aioaws)
-[![versions](https://img.shields.io/pypi/pyversions/aioaws.svg)](https://github.com/samuelcolvin/aioaws)
-[![license](https://img.shields.io/github/license/samuelcolvin/aioaws.svg)](https://github.com/samuelcolvin/aioaws/blob/main/LICENSE)
+[![versions](https://img.shields.io/pypi/pyversions/aioaws.svg)](https://github.com/pydantic/aioaws)
+[![license](https://img.shields.io/github/license/pydantic/aioaws.svg)](https://github.com/pydantic/aioaws/blob/main/LICENSE)
 
 Asyncio SDK for some AWS services.
 
@@ -19,12 +19,12 @@ It currently supports:
 * **SNS** - enough to get notifications about mail delivery from SES
 * [AWS Signature Version 4](https://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-auth-using-authorization-header.html)
   authentication for any AWS service (this is the only clean & modern implementation of AWS4 I know of in python, see
-  [`core.py`](https://github.com/samuelcolvin/aioaws/blob/main/aioaws/core.py#L120-L175))
+  [`core.py`](https://github.com/pydantic/aioaws/blob/main/aioaws/core.py#L149-L230))
 
 The only dependencies of **aioaws**, are:
 * **aiofiles** - for asynchronous reading of files
 * **cryptography** - for verifying SNS signatures
-* **httpx** - for HTTP requests
+* **httpx2** - for HTTP requests
 * **pydantic** - for validating responses
 
 ## Install
@@ -39,7 +39,7 @@ pip install aioaws
 ```py
 import asyncio
 from aioaws.s3 import S3Client, S3Config
-from httpx import AsyncClient
+from httpx2 import AsyncClient
 
 # requires `pip install devtools`
 from devtools import debug
@@ -134,7 +134,7 @@ To send an email with SES:
 ```py
 import asyncio
 from pathlib import Path
-from httpx import AsyncClient
+from httpx2 import AsyncClient
 from aioaws.ses import SesConfig, SesClient, SesRecipient, SesAttachment
 
 async def ses_demo(client: AsyncClient):
@@ -172,7 +172,7 @@ Receiving data about SES webhooks from SNS (assuming you're using FastAPI)
 from aioaws.ses import SesWebhookInfo
 from aioaws.sns import SnsWebhookError
 from fastapi import Request
-from httpx import AsyncClient
+from httpx2 import AsyncClient
 
 async_client = AsyncClient...
 
@@ -189,5 +189,5 @@ async def ses_webhook(request: Request):
     ...
 ```
 
-See [here](https://github.com/samuelcolvin/aioaws/blob/main/aioaws/ses.py#L196-L204)
+See [here](https://github.com/pydantic/aioaws/blob/main/aioaws/ses.py#L206-L215)
 for more information about what's provided in a `SesWebhookInfo`.

@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 import pytest
 from foxglove.testing import DummyServer, create_dummy_server
-from httpx import URL, AsyncClient
+from httpx2 import URL, AsyncClient
 
 from . import dummy_server
 

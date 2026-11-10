@@ -1,7 +1,6 @@
 # aioaws
 
 [![CI](https://github.com/pydantic/aioaws/actions/workflows/ci.yml/badge.svg?event=push)](https://github.com/pydantic/aioaws/actions?query=event%3Apush+branch%3Amain+workflow%3ACI)
-[![Coverage](https://codecov.io/gh/pydantic/aioaws/branch/main/graph/badge.svg)](https://codecov.io/gh/pydantic/aioaws)
 [![pypi](https://img.shields.io/pypi/v/aioaws.svg)](https://pypi.python.org/pypi/aioaws)
 [![versions](https://img.shields.io/pypi/pyversions/aioaws.svg)](https://github.com/pydantic/aioaws)
 [![license](https://img.shields.io/github/license/pydantic/aioaws.svg)](https://github.com/pydantic/aioaws/blob/main/LICENSE)

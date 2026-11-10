@@ -11,7 +11,7 @@ from cryptography.hazmat.primitives.asymmetric import padding
 from httpx import AsyncClient
 from pydantic import BaseModel, Field, HttpUrl, ValidationError, field_validator
 
-__all__ = 'SnsWebhookError', 'SnsPayload', 'verify_webhook'
+__all__ = 'SnsPayload', 'SnsWebhookError', 'verify_webhook'
 logger = logging.getLogger('aioaws.sns')
 
 
@@ -27,8 +27,8 @@ class SnsPayload(BaseModel):
     type: Literal['Notification', 'SubscriptionConfirmation', 'UnsubscribeConfirmation'] = Field(..., alias='Type')
     signing_cert_url: HttpUrl = Field(..., alias='SigningCertURL')
     signature: bytes = Field(..., alias='Signature')
-    subscribe_url: HttpUrl = Field(None, alias='SubscribeURL')
-    message: str = Field(str, alias='Message')
+    subscribe_url: HttpUrl | None = Field(None, alias='SubscribeURL')
+    message: str = Field('', alias='Message')
     request_data: dict[str, Any]
 
     @field_validator('signature', mode='before')
@@ -52,6 +52,7 @@ async def verify_webhook(request_body: str | bytes, http_client: AsyncClient) ->
 
     if payload.type == 'SubscriptionConfirmation':
         logger.info('confirming aws Subscription')
+        assert payload.subscribe_url is not None, 'SubscribeURL is required for SubscriptionConfirmation'
         await get_resources(payload.subscribe_url, http_client)
         return None
     else:

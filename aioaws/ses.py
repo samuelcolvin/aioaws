@@ -61,7 +61,7 @@ class SesRecipient:
 
 
 class SesClient:
-    __slots__ = '_config', '_aws_client'
+    __slots__ = '_aws_client', '_config'
 
     def __init__(self, http_client: AsyncClient, config: 'BaseConfigProtocol'):
         self._aws_client = AwsClient(http_client, config, 'ses')
@@ -124,7 +124,7 @@ class SesClient:
                 total_size += size
                 if total_size > max_total_size:
                     raise ValueError(f'attachment size {total_size} greater than 10MB')
-                email_msg.attach(attachment_msg)
+                email_msg.attach(attachment_msg)  # type: ignore[arg-type]
 
         return await self.send_raw_email(e_from_recipient.email, email_msg, to=to_r, cc=cc_r, bcc=bcc_r)
 

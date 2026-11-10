@@ -56,7 +56,7 @@ class S3File(BaseModel):
 
 
 class S3Client:
-    __slots__ = '_config', '_aws_client'
+    __slots__ = '_aws_client', '_config'
 
     def __init__(self, http_client: AsyncClient, config: 'S3ConfigProtocol'):
         self._aws_client = AwsClient(http_client, config, 's3')

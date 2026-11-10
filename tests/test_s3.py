@@ -1,6 +1,6 @@
 import asyncio
 import secrets
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 from dirty_equals import IsNow, IsStr
@@ -111,7 +111,7 @@ async def test_list(client: AsyncClient):
     assert len(files) == 3
     assert files[0].model_dump() == dict(
         key='/foo.html',
-        last_modified=datetime(2032, 1, 1, 12, 34, 56, tzinfo=timezone.utc),
+        last_modified=datetime(2032, 1, 1, 12, 34, 56, tzinfo=UTC),
         size=123,
         e_tag='aaa',
         storage_class='STANDARD',

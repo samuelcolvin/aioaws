@@ -8,53 +8,55 @@ on:
       - '**'
   pull_request: {}
 
+# no permissions by default, the release job grants itself what it needs
+permissions: {}
+
+env:
+  COLUMNS: 150
+  UV_FROZEN: '1'
+
 jobs:
   lint:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
-
-    - uses: actions/setup-python@v5
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
-        python-version: '3.12'
+        persist-credentials: false
 
-    - run: pip install -r requirements/linting.txt
-    - run: pip install -r requirements/pyproject.txt
-
-    - uses: pre-commit/action@v3.0.0
+    - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
       with:
-        extra_args: --all-files
-      env:
-        SKIP: no-commit-to-branch
+        python-version: '3.13'
+        enable-cache: true # zizmor: ignore[cache-poisoning] -- Job does not produce release artifacts and does not have sensitive permissions
+
+    - run: uv sync
+
+    - run: make lint
+    - run: make mypy
 
   test:
     name: test py${{ matrix.python-version }} on ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu, macos]
-        python-version: ['3.10', '3.11', '3.12']
+        os: [ubuntu-latest, macos-latest]
+        python-version: ['3.11', '3.12', '3.13', '3.14', '3.15']
 
-    runs-on: ${{ matrix.os }}-latest
-
-    env:
-      PYTHON: ${{ matrix.python-version }}
-      OS: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
 
-    - name: set up python
-      uses: actions/setup-python@v5
+    - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
       with:
         python-version: ${{ matrix.python-version }}
-        allow-prereleases: true
+        enable-cache: true # zizmor: ignore[cache-poisoning] -- Job does not produce release artifacts and does not have sensitive permissions
 
-    - run: pip install -r requirements/tests.txt
-    - run: pip install -r requirements/pyproject.txt
-    - run: pip install .
-    - run: pip freeze
+    - run: uv sync
+
+    - run: uv pip freeze
 
     - name: test
       run: make test
@@ -62,22 +64,25 @@ jobs:
         TEST_AWS_ACCESS_KEY: ${{ secrets.TEST_AWS_ACCESS_KEY }}
         TEST_AWS_SECRET_KEY: ${{ secrets.TEST_AWS_SECRET_KEY }}
 
-    - run: coverage xml
+    - run: uv run coverage xml
 
-    - uses: codecov/codecov-action@v3
+    - uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
       with:
-        file: ./coverage.xml
+        files: ./coverage.xml
         env_vars: PYTHON,OS
+      env:
+        PYTHON: ${{ matrix.python-version }}
+        OS: ${{ matrix.os }}
 
-  check:  # This job does nothing and is only used for the branch protection
+  # https://github.com/marketplace/actions/alls-green#why used for branch protection checks
+  check:
     if: always()
     needs: [lint, test]
     runs-on: ubuntu-latest
 
     steps:
       - name: Decide whether the needed jobs succeeded or failed
-        uses: re-actors/alls-green@release/v1
-        id: all-green
+        uses: re-actors/alls-green@b5b5b37504aa4183270bd3d855c52a67f212be35 # release/v1
         with:
           jobs: ${{ toJSON(needs) }}
 
@@ -88,27 +93,25 @@ jobs:
     environment: release
 
     permissions:
+      # for trusted publishing to PyPI
       id-token: write
 
     steps:
-      - uses: actions/checkout@v4
-
-      - name: set up python
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          python-version: '3.12'
+          persist-credentials: false
 
-      - name: install
-        run: pip install -U build
-
-      - name: check version
-        id: check-version
-        uses: samuelcolvin/check-python-version@v3.2
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
-          version_file_path: 'aioaws/version.py'
+          python-version: '3.13'
+          enable-cache: false
 
-      - name: build
-        run: python -m build
+      - name: check GITHUB_REF matches package version
+        uses: samuelcolvin/check-python-version@17d859ba0a6af9ffcaac5c70608fed36ed33e32a # v5.1
+        with:
+          version_file_path: aioaws/version.py
 
-      - name: Upload package to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
+      - run: uv build
+
+      - name: upload to pypi
+        run: uv publish --trusted-publishing always

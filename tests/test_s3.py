@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 import pytest
 from dirty_equals import IsNow, IsStr
 from foxglove.testing import DummyServer
-from httpx import AsyncClient
+from httpx2 import AsyncClient
 
 from aioaws.core import RequestError
 from aioaws.s3 import S3Client, S3Config, S3File, to_key

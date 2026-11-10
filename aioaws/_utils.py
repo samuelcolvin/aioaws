@@ -3,7 +3,7 @@ from collections.abc import Coroutine, Iterable
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
-from httpx import Response
+from httpx2 import Response
 
 if TYPE_CHECKING:
     from ._types import BaseConfigProtocol

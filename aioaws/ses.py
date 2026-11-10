@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING, Any, Literal, Optional
 from urllib.parse import urlencode
 
 import aiofiles
-from httpx import AsyncClient
+from httpx2 import AsyncClient
 from pydantic import TypeAdapter
 
 from . import sns

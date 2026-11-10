@@ -10,7 +10,7 @@ from itertools import chain
 from typing import TYPE_CHECKING, Any, Literal
 from xml.etree import ElementTree
 
-from httpx import URL, AsyncClient
+from httpx2 import URL, AsyncClient
 from pydantic import BaseModel, ConfigDict, field_validator
 
 from ._utils import ManyTasks, pretty_xml, utcnow

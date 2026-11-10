@@ -24,7 +24,7 @@ It currently supports:
 The only dependencies of **aioaws**, are:
 * **aiofiles** - for asynchronous reading of files
 * **cryptography** - for verifying SNS signatures
-* **httpx** - for HTTP requests
+* **httpx2** - for HTTP requests
 * **pydantic** - for validating responses
 
 ## Install
@@ -39,7 +39,7 @@ pip install aioaws
 ```py
 import asyncio
 from aioaws.s3 import S3Client, S3Config
-from httpx import AsyncClient
+from httpx2 import AsyncClient
 
 # requires `pip install devtools`
 from devtools import debug
@@ -134,7 +134,7 @@ To send an email with SES:
 ```py
 import asyncio
 from pathlib import Path
-from httpx import AsyncClient
+from httpx2 import AsyncClient
 from aioaws.ses import SesConfig, SesClient, SesRecipient, SesAttachment
 
 async def ses_demo(client: AsyncClient):
@@ -172,7 +172,7 @@ Receiving data about SES webhooks from SNS (assuming you're using FastAPI)
 from aioaws.ses import SesWebhookInfo
 from aioaws.sns import SnsWebhookError
 from fastapi import Request
-from httpx import AsyncClient
+from httpx2 import AsyncClient
 
 async_client = AsyncClient...
 

@@ -390,7 +390,7 @@ async def test_webhook_subscribe(client: AsyncClient, aws: DummyServer, mocker):
 
 async def test_real_send(real_aws: AWS):
     async with AsyncClient() as client:
-        ses = SesClient(client, SesConfig(real_aws.access_key, real_aws.secret_key, 'eu-west-1'))
+        ses = SesClient(client, SesConfig(real_aws.access_key, real_aws.secret_key, 'us-east-1'))
 
         message_id = await ses.send_email(
             'testing@scolvin.com',

@@ -124,7 +124,7 @@ class SesClient:
                 total_size += size
                 if total_size > max_total_size:
                     raise ValueError(f'attachment size {total_size} greater than 10MB')
-                email_msg.attach(attachment_msg)  # type: ignore[arg-type]
+                email_msg.attach(attachment_msg)  # pyright: ignore[reportArgumentType]
 
         return await self.send_raw_email(e_from_recipient.email, email_msg, to=to_r, cc=cc_r, bcc=bcc_r)
 
@@ -222,7 +222,7 @@ class SesWebhookInfo:
             return None
 
         try:
-            message = json.loads(payload.message)
+            message: dict[str, Any] = json.loads(payload.message)
         except ValueError:
             # this can happen legitimately, e.g. when a new configuration set is setup
             logger.warning('invalid JSON in SNS notification', extra={'data': {'request': payload.request_data}})
@@ -237,9 +237,9 @@ class SesWebhookInfo:
 
         message_id = message['mail']['messageId']
 
-        details = message.get(event_type) or {}
-        mail = message.get('mail') or {}
-        tags = mail.get('tags') or {}
+        details: dict[str, Any] = message.get(event_type) or {}
+        mail: dict[str, Any] = message.get('mail') or {}
+        tags: dict[str, list[str]] = mail.get('tags') or {}
         timestamp = details.get('timestamp') or mail.get('timestamp')
 
         if event_type == 'bounce':

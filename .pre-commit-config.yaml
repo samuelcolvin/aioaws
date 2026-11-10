@@ -32,10 +32,3 @@ repos:
         types: [python]
         language: system
         pass_filenames: false
-      - id: mypy
-        name: Mypy
-        entry: make
-        args: [mypy]
-        types: [python]
-        language: system
-        pass_filenames: false

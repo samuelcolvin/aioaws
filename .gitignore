@@ -16,7 +16,6 @@ yarn-debug.log*
 yarn-error.log*
 /TODO.md
 /js/public/logo.png
-/.mypy_cache/
 /activate.sh
 /scratch/
 /.venv/

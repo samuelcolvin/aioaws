@@ -32,7 +32,6 @@ jobs:
     - run: uv sync
 
     - run: make lint
-    - run: make mypy
 
   test:
     name: test py${{ matrix.python-version }} on ${{ matrix.os }}

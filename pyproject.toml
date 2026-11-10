@@ -52,7 +52,7 @@ Changelog = "https://github.com/samuelcolvin/aioaws/releases"
 [dependency-groups]
 dev = [
     "coverage[toml]",
-    "mypy",
+    "basedpyright",
     "ruff",
     "types-aiofiles",
     "pytest>=8",
@@ -61,6 +61,7 @@ dev = [
     "pytest-pretty",
     "aiohttp",
     "async-timeout",  # required by foxglove-web
+    "devtools",
     "dirty-equals",
     "foxglove-web",
     "pillow",
@@ -111,11 +112,9 @@ exclude_lines = [
     "@overload",
 ]
 
-[tool.mypy]
-strict = true
-warn_return_any = false
-show_error_codes = true
-
-[[tool.mypy.overrides]]
-module = ["devtools.*"]
-ignore_missing_imports = true
+[tool.pyright]
+pythonVersion = "3.11"
+typeCheckingMode = "strict"
+reportUnnecessaryTypeIgnoreComment = true
+venv = ".venv"
+include = ["aioaws"]

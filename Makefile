@@ -15,14 +15,10 @@ format: ## Format Python code
 	uv run ruff check --fix --fix-only
 
 .PHONY: lint
-lint: ## Lint Python code with ruff
+lint: ## Lint Python code with ruff and basedpyright (strict)
 	uv run ruff format --check
 	uv run ruff check
-
-.PHONY: mypy
-mypy: ## Type check with mypy (strict)
-	uv run mypy --version
-	uv run mypy aioaws
+	uv run basedpyright
 
 .PHONY: test
 test: ## Run tests
@@ -34,7 +30,7 @@ testcov: test ## Run tests with coverage and build HTML report
 	@uv run coverage html
 
 .PHONY: all
-all: lint mypy testcov ## Run all checks and tests
+all: lint testcov ## Run all checks and tests
 
 .PHONY: clean
 clean: ## Clean up build artifacts
@@ -44,7 +40,6 @@ clean: ## Clean up build artifacts
 	rm -f `find . -type f -name '.*~' `
 	rm -rf .cache
 	rm -rf .pytest_cache
-	rm -rf .mypy_cache
 	rm -rf htmlcov
 	rm -rf *.egg-info
 	rm -f .coverage

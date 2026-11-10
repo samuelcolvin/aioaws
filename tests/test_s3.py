@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 import pytest
 from dirty_equals import IsNow, IsStr
 from foxglove.testing import DummyServer
-from httpx2 import AsyncClient
+from httpx2 import AsyncClient, Limits
 
 from aioaws.core import RequestError
 from aioaws.s3 import S3Client, S3Config, S3File, to_key
@@ -265,7 +265,8 @@ async def test_real_download_link(real_aws: AWS):
 
 @pytest.mark.asyncio
 async def test_real_many(real_aws: AWS):
-    async with AsyncClient(timeout=30) as client:
+    # opening ~50 TLS connections to S3 at once occasionally fails mid-handshake, so cap concurrent connections
+    async with AsyncClient(timeout=30, limits=Limits(max_connections=10)) as client:
         s3 = S3Client(client, S3Config(real_aws.access_key, real_aws.secret_key, 'us-east-1', 'aioaws-testing2'))
 
         # upload many files

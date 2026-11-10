@@ -10,7 +10,7 @@ resolution-markers = [
 
 [[package]]
 name = "aioaws"
-version = "0.15.1"
+version = "0.16"
 source = { editable = "." }
 dependencies = [
     { name = "aiofiles" },

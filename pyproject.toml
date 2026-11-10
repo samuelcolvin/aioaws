@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "aioaws"
-version = "0.15.1"
+version = "0.16"
 description = "Asyncio SDK for some AWS services."
 authors = [{name = "Samuel Colvin", email = "s@muelcolvin.com"}]
 license = "MIT"

@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 from itertools import chain
 from typing import TYPE_CHECKING, Any, Literal
 from xml.etree import ElementTree
+from xml.sax.saxutils import escape
 
 from httpx2 import URL, AsyncClient
 from pydantic import BaseModel, ConfigDict, field_validator
@@ -136,10 +137,11 @@ class S3Client:
         https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteObjects.html
         """
         assert len(files) <= 1000, f'_delete_1000_files can delete 1000 files max, not {len(files)}'
+        keys = (escape(to_key(k), {'\r': '&#13;'}) for k in files)
         xml = (
             f'<?xml version="1.0" encoding="UTF-8"?>'
             f'<Delete xmlns="{xmlns}">'
-            f' {"".join(f"<Object><Key>{to_key(k)}</Key></Object>" for k in files)}'
+            f' {"".join(f"<Object><Key>{key}</Key></Object>" for key in keys)}'
             f'</Delete>'
         )
         r = await self._aws_client.post('', data=xml.encode(), params=dict(delete=1), content_type='text/xml')
